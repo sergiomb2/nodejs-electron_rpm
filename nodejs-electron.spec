@@ -24,7 +24,7 @@
 
 %define mod_name electron
 # https://github.com/nodejs/node/blob/main/doc/abi_version_registry.json
-%define abi_version 109
+%define abi_version 110
 
 # Do not provide libEGL.so, etc…
 %define __provides_exclude ^lib.*\\.so.*$
@@ -65,6 +65,8 @@ BuildArch:      i686
 %bcond_without system_vpx
 %endif
 
+
+
 %bcond_with clang
 
 %if %{with clang}
@@ -80,12 +82,6 @@ BuildArch:      i686
 %bcond_without gold
 %endif
 
-# Both BFD and Gold run out of memory on 32-bit.
-%ifarch %ix86 %arm
-%bcond_without lld
-%else
-%bcond_with lld
-%endif
 
 %endif #with clang
 
@@ -106,32 +102,23 @@ BuildArch:      i686
 %endif
 
 
-%if 0%{?suse_version} >= 1550 || 0%{?sle_version} >= 150400 || 0%{?fedora}
-%bcond_without system_harfbuzz
-%else
-%bcond_with system_harfbuzz
-%endif
-
-%if 0%{?suse_version} >= 1550 || 0%{?sle_version} >= 150500 || 0%{?fedora} >= 37
-%bcond_without system_avif
-%else
-%bcond_with system_avif
-%endif
-
-%bcond_without system_freetype
 %bcond_without system_nghttp2
-%bcond_without system_double_conversion
-%bcond_without system_woff2
 
 
 %if 0%{?suse_version} >= 1550 || 0%{?sle_version} >= 150600 || 0%{?fedora} >= 37
+%bcond_without harfbuzz_5
 %bcond_without system_aom
+%bcond_without system_avif
+%bcond_without system_jxl
 %bcond_without icu_71
 %bcond_without ffmpeg_5
 %bcond_without system_dav1d
 %bcond_without system_spirv
 %else
+%bcond_with harfbuzz_5
 %bcond_with system_aom
+%bcond_with system_avif
+%bcond_with system_jxl
 %bcond_with icu_71
 %bcond_with ffmpeg_5
 %bcond_with system_dav1d
@@ -146,11 +133,6 @@ BuildArch:      i686
 %bcond_with system_nvctrl
 %endif
 
-%if 0%{?suse_version} >= 1550 || 0%{?sle_version} >= 150600 || 0%{?fedora_version}
-%bcond_without system_jxl
-%else
-%bcond_with system_jxl
-%endif
 
 
 
@@ -203,13 +185,13 @@ BuildArch:      i686
 
 
 Name:           nodejs-electron
-Version:        21.3.2
-Release:        3%{?dist}
+Version:        22.3.0
+Release:        2%{?dist}
 Summary:        Build cross platform desktop apps with JavaScript, HTML, and CSS
 License:        AFL-2.0 AND Apache-2.0 AND blessing AND BSD-2-Clause AND BSD-3-Clause AND BSD-Protection AND BSD-Source-Code AND bzip2-1.0.6 AND IJG AND ISC AND LGPL-2.0-or-later AND LGPL-2.1-or-later AND MIT AND MIT-CMU AND MIT-open-group AND (MPL-1.1 OR GPL-2.0-or-later OR LGPL-2.1-or-later) AND MPL-2.0 AND OpenSSL AND SGI-B-2.0 AND SUSE-Public-Domain AND X11
 Group:          Development/Languages/NodeJS
 URL:            https://github.com/electron/electron
-Source0:        %{mod_name}-%{version}.tar.xz
+Source0:        %{mod_name}-%{version}.tar.zst
 Source1:        create_tarball.sh
 Source10:       electron-launcher.sh
 Source11:       electron.desktop
@@ -225,6 +207,9 @@ Source401:      audio_file_reader-ffmpeg-AVFrame-duration.patch
 # …and against icu-69
 Source410:      NumberFormat-icu71-incrementExact.patch
 Source411:      intl-objects-icu71-UNUM_APPROXIMATELY_SIGN_FIELD.patch
+# and against harfbuzz 4
+Source415:      harfbuzz-replace-chromium-scoped-type.patch
+
 
 #Reverse upstream changes to build against system libavif.
 #All of this patch is dead code, so it can be reversed unconditionally.
@@ -256,6 +241,8 @@ Patch72:        electron-version-from-env.patch
 Patch73:        disable-webspeech.patch
 Patch74:        common.gypi-remove-fno-omit-frame-pointer.patch
 Patch75:        gcc-asmflags.patch
+# https://sources.debian.org/patches/chromium/108.0.5359.124-1/disable/tests.patch/
+Patch76:        disable-devtools-tests.patch
 
 # PATCHES to use system libs
 Patch1002:      chromium-system-libusb.patch
@@ -266,7 +253,6 @@ Patch1038:      pdfium-fix-system-libs.patch
 Patch1040:      system-jsoncpp.patch
 # https://sources.debian.org/patches/chromium/102.0.5005.115-1/system/zlib.patch/
 Patch1041:      system-zlib.patch
-Patch1043:      node-system-libs.patch
 Patch1044:      replace_gn_files-system-libs.patch
 Patch1045:      angle-system-xxhash.patch
 # https://svnweb.mageia.org/packages/cauldron/chromium-browser-stable/current/SOURCES/chromium-99-pdfium-system-libtiff-libpng.patch
@@ -278,7 +264,6 @@ Patch1054:      thread_annotations-fix-build-with-system-abseil.patch
 Patch1063:      system-libbsd.patch
 Patch1065:      base-system-nspr.patch
 Patch1066:      system-gtest.patch
-Patch1067:      breakpad-system-curl.patch
 Patch1068:      system-six.patch
 Patch1069:      system-usb_ids.patch
 Patch1070:      skia-system-vulkan-headers.patch
@@ -286,8 +271,8 @@ Patch1071:      system-pydeps.patch
 Patch1072:      node-system-icu.patch
 Patch1073:      system-nasm.patch
 Patch1074:      no-zlib-headers.patch
-Patch1075:      system-abseil-missing-shims.patch
 Patch1076:      crashpad-use-system-abseil.patch
+Patch1077:      chromium-108-abseil-shims.patch
 
 # PATCHES to fix interaction with third-party software
 Patch2004:      chromium-gcc11.patch
@@ -313,6 +298,8 @@ Patch2033:       node-upgrade-llhttp-to-8.patch
 %else
 Source2033:      node-upgrade-llhttp-to-8.patch
 %endif
+Patch2034:      swiftshader-LLVMJIT-AddressSanitizerPass-dead-code-remove.patch
+Patch2035:      RenderFrameHostImpl-use-after-free.patch
 
 # PATCHES that should be submitted upstream verbatim or near-verbatim
 Patch3016:      chromium-98-EnumTable-crash.patch
@@ -325,16 +312,10 @@ Patch3033:      chromium-94.0.4606.71-InkDropHost-crash.patch
 Patch3056:      async_shared_storage_database_impl-missing-absl-WrapUnique.patch
 # https://salsa.debian.org/chromium-team/chromium/-/blob/456851fc808b2a5b5c762921699994e957645917/debian/patches/upstream/nested-nested-nested-nested-nested-nested-regex-patterns.patch
 Patch3064:      nested-nested-nested-nested-nested-nested-regex-patterns.patch
-# Fedora patch to fix build with python3.11
-Patch3066:      chromium-103.0.5060.53-python3-do-not-use-deprecated-mode-U.patch
 Patch3067:      reproducible-config.gypi.patch
-Patch3068:      content_language_parser-missing-string.patch
 Patch3069:      aggregatable_attribution_utils-do-not-assume-abseil-ABI.patch
+Patch3071:      electron_serial_delegate-ambiguous-Observer.patch
 Patch3072:      attribution_response_parsing-do-not-assume-abseil-ABI.patch
-Patch3074:      pending_beacon_dispatcher-virtual-functions-cannot-be-constexpr.patch
-Patch3075:      std_lib_extras-missing-intptr_t.patch
-Patch3076:      gtk_ui_platform_stub-incomplete-type-LinuxInputMethodContext.patch
-Patch3077:      argument_spec-missing-isnan-isinf.patch
 Patch3078:      select_file_dialog_linux_kde-Wodr.patch
 Patch3079:      web_contents_impl-Wsubobject-linkage.patch
 Patch3080:      compact_enc_det_generated_tables-Wnarrowing.patch
@@ -352,6 +333,12 @@ Patch3092:      webgl_image_conversion-Wstrict-aliasing.patch
 Patch3093:      xr_cube_map-Wstrict-aliasing.patch
 Patch3094:      static_constructors-Wstrict-aliasing.patch
 Patch3095:      CVE-2022-43548.patch
+Patch3096:      remove-date-reproducible-builds.patch
+Patch3097:      shim_headers-fix-ninja.patch
+Patch3098:      document_loader-private-DecodedBodyData.patch
+Patch3099:      crashpad-elf_image_reader-ProgramHeaderTableSpecific-expected-unqualified-id.patch
+Patch3100:      first_party_set_parser-IssueWithMetadata-no-known-conversion.patch
+Patch3101:      print_dialog_gtk-no-kEnableOopPrintDriversJobPrint.patch
 
 %if %{with clang}
 BuildRequires:  clang
@@ -372,9 +359,7 @@ BuildRequires:  c-ares-devel
 %if %{with system_crc32c}
 BuildRequires:  cmake(Crc32c)
 %endif
-%if %{with system_double_conversion}
 BuildRequires:  double-conversion-devel
-%endif
 BuildRequires:  desktop-file-utils
 BuildRequires:  fdupes
 %if 0%{?fedora}
@@ -445,6 +430,8 @@ BuildRequires:  update-desktop-files
 %endif
 BuildRequires:  util-linux
 BuildRequires:  vulkan-headers
+BuildRequires:  wayland-devel
+BuildRequires:  zstd
 %if %{with system_abseil}
 BuildRequires:  pkgconfig(absl_algorithm_container) >= 20211000
 BuildRequires:  pkgconfig(absl_base)
@@ -491,16 +478,15 @@ BuildRequires:  pkgconfig(dav1d) >= 1
 BuildRequires:  pkgconfig(dbus-1)
 BuildRequires:  pkgconfig(dri)
 BuildRequires:  pkgconfig(expat)
-%if %{with system_freetype}
 BuildRequires:  pkgconfig(freetype2)
-%endif
 BuildRequires:  pkgconfig(gbm)
 BuildRequires:  pkgconfig(glib-2.0)
 BuildRequires:  pkgconfig(glproto)
 BuildRequires:  pkgconfig(gtest)
 BuildRequires:  pkgconfig(gtk+-3.0)
-%if %{with system_harfbuzz}
 BuildRequires:  pkgconfig(harfbuzz) >= 2
+%if %{with harfbuzz_5}
+BuildRequires:  pkgconfig(harfbuzz) >= 5
 %endif
 
 %if %{with icu_71}
@@ -528,7 +514,7 @@ BuildRequires:  pkgconfig(libavformat) >= 58
 BuildRequires:  pkgconfig(libavutil)
 %endif
 %if %{with system_avif}
-BuildRequires:  pkgconfig(libavif)
+BuildRequires:  pkgconfig(libavif) >= 0.10
 %endif
 BuildRequires:  pkgconfig(libbrotlidec)
 BuildRequires:  pkgconfig(libbrotlienc)
@@ -537,7 +523,7 @@ BuildRequires:  pkgconfig(libcurl)
 BuildRequires:  pkgconfig(libdrm)
 BuildRequires:  pkgconfig(libevent)
 %if %{with system_jxl}
-BuildRequires:  pkgconfig(libjxl)
+BuildRequires:  pkgconfig(libjxl) >= 0.7
 %endif
 %if 0%{?fedora} >= 38
 #Work around https://bugzilla.redhat.com/show_bug.cgi?id=2148612
@@ -553,9 +539,7 @@ BuildRequires:  pkgconfig(libpulse)
 BuildRequires:  pkgconfig(libsecret-1)
 BuildRequires:  pkgconfig(libva)
 BuildRequires:  pkgconfig(libwebp) >= 0.4.0
-%if %{with system_woff2}
 BuildRequires:  pkgconfig(libwoff2dec)
-%endif
 BuildRequires:  pkgconfig(libxml-2.0) >= 2.9.5
 BuildRequires:  pkgconfig(libxslt)
 BuildRequires:  pkgconfig(libxxhash)
@@ -677,6 +661,10 @@ patch -R -p1 < %PATCH1076
 patch -R -p1 < %SOURCE400
 %endif
 
+%if %{without harfbuzz_5}
+patch -R -p1 < %SOURCE415
+%endif
+
 %if %{without icu_71}
 patch -R -p1 < %SOURCE410
 patch -R -p1 < %SOURCE411
@@ -691,8 +679,13 @@ patch -R -p1 < %SOURCE401
 patch -R -p1 < %SOURCE420
 
 # Link system wayland-protocols-devel into where chrome expects them
+mkdir -p third_party/wayland/src
 mkdir -p third_party/wayland-protocols/kde/src
+ln -svfT %{_datadir}/wayland third_party/wayland/src/protocol
+#mkdir -p third_party/wayland-protocols/mesa
+
 #ln -svfT %{_datadir}/wayland-protocols third_party/wayland-protocols/src
+#ln -svfT %{_datadir}/wayland-eglstream third_party/wayland-protocols/mesa/wayland-drm
 ln -svfT %{_datadir}/plasma-wayland-protocols third_party/wayland-protocols/kde/src/protocols
 
 # Shim generators for replace_gn_files.py
@@ -770,8 +763,13 @@ export CXXFLAGS="$(echo ${CXXFLAGS} | sed -e 's/-g / /g' -e 's/-g$//g')"
 export CFLAGS="$(echo ${CFLAGS} | sed -e 's/-g /-g1 /g' -e 's/-g$/-g1/g')"
 %endif
 
-
-export LDFLAGS="%{?build_ldflags}"
+#The chromium build process passes lots of .o files directly to the linker instead of using static libraries,
+#and relies on the linker eliminating unused sections.
+#Re-add these parameters from build/config/compiler/BUILD.gn.
+export LDFLAGS="%{?build_ldflags} -Wl,-O2 -Wl,--gc-sections "
+%if %{without lld} && %{without gold}
+export LDFLAGS="$LDFLAGS -Wl,--gc-keep-exported"
+%endif
 
 
 %if %{with clang}
@@ -835,12 +833,8 @@ export LDFLAGS="${LDFLAGS} -Wl,--as-needed -fuse-ld=mold"
 # ulimit -n 4096
 
 %if %{with lto} && %{without clang}
-# reduce the threads for linking even more due to LTO eating ton of memory
-_link_threads=$(((%{jobs} - 2)))
 
 %ifarch aarch64
-_link_threads=1
-
 %if %{without mold}
 %if %{with gold}
 export LDFLAGS="${LDFLAGS} -Wl,--no-map-whole-files -Wl,--no-keep-memory -Wl,--no-keep-files-mapped"
@@ -848,18 +842,20 @@ export LDFLAGS="${LDFLAGS} -Wl,--no-map-whole-files -Wl,--no-keep-memory -Wl,--n
 export LDFLAGS="${LDFLAGS} -Wl,--no-keep-memory -Wl,--hash-size=30 -Wl,--reduce-memory-overheads"
 %endif
 %endif
-
+export LDFLAGS="$LDFLAGS --param ggc-min-expand=30 --param ggc-min-heapsize=4096"
 %endif
-test "$_link_threads" -le 0 && _link_threads=1
-export LDFLAGS="$LDFLAGS -flto=$_link_threads --param lto-max-streaming-parallelism=1"
+export LDFLAGS="$LDFLAGS --param lto-max-streaming-parallelism=1"
 %endif
 
 gn_system_libraries=(
     brotli
+    double-conversion
     ffmpeg
     flac
     flatbuffers
     fontconfig
+    freetype
+    harfbuzz-ng
     icu
     libdrm
     libevent
@@ -873,6 +869,7 @@ gn_system_libraries=(
     opus
     re2
     snappy
+    woff2
     zlib
 )
 
@@ -887,6 +884,8 @@ gn_system_libraries+=(
    absl_flags
    absl_functional
    absl_hash
+   absl_log
+   absl_log_internal
    absl_memory
    absl_meta
    absl_numeric
@@ -928,11 +927,6 @@ find third_party/dav1d -type f ! -name "*.gn" -a ! -name "*.gni" -delete
 gn_system_libraries+=( dav1d )
 %endif
 
-%if %{with system_double_conversion}
-find base/third_party/double_conversion -type f ! -name "*.gn" -a ! -name "*.gni" -delete
-gn_system_libraries+=( double-conversion )
-%endif
-
 %if %{with system_nvctrl}
 find third_party/angle/src/third_party/libXNVCtrl/ -type f ! -name "*.gn" -a ! -name "*.gni" -delete
 gn_system_libraries+=( libXNVCtrl )
@@ -954,25 +948,11 @@ gn_system_libraries+=(
 )
 %endif
 
-%if %{with system_harfbuzz}
-find third_party/harfbuzz-ng -type f ! -name "*.gn" -a ! -name "*.gni" -a ! -path "third_party/harfbuzz-ng/utils/hb_scoped.h" -delete
-gn_system_libraries+=( harfbuzz-ng )
-%endif
-
-%if %{with system_freetype}
-find third_party/freetype -type f ! -name "*.gn" -a ! -name "*.gni" -delete
-gn_system_libraries+=( freetype )
-%endif
-
 %if %{with system_vpx}
 find third_party/libvpx -type f ! -name "*.gn" -a ! -name "*.gni" -delete
 gn_system_libraries+=( libvpx )
 %endif
 
-%if %{with system_woff2}
-find third_party/woff2 -type f ! -name "*.gn" -a ! -name "*.gni" -delete
-gn_system_libraries+=( woff2 )
-%endif
 
 %if %{with system_yuv}
 find third_party/libyuv -type f ! -name "*.gn" -a ! -name "*.gni" -delete
@@ -1087,7 +1067,7 @@ myconf_gn+=" v8_symbol_level=1"
 %endif
 %ifarch %ix86 %arm
 #Sorry, no debug on 32bit.
-myconf_gn+=" symbol_level=0" 
+myconf_gn+=" symbol_level=1" 
 myconf_gn+=" blink_symbol_level=0"
 myconf_gn+=" v8_symbol_level=0"
 %endif
@@ -1120,6 +1100,10 @@ myconf_gn+=" enable_webui_certificate_viewer=false"
 myconf_gn+=" enable_background_contents=false"
 myconf_gn+=" enable_xz_extractor=false"
 myconf_gn+=" enable_feed_v2=false"
+myconf_gn+=" ozone_platform_headless=false"
+myconf_gn+=" angle_enable_gl_null=false"
+myconf_gn+=" enable_paint_preview=false"
+
 
 
 #Do not build Chromecast
@@ -1161,12 +1145,9 @@ myconf_gn+=" use_system_libpng=true"
 myconf_gn+=" use_system_lcms2=true"
 myconf_gn+=" use_system_libopenjpeg2=true"
 myconf_gn+=" use_system_wayland_scanner=true"
-%if %{with system_harfbuzz}
+myconf_gn+=" use_system_libwayland=true"
 myconf_gn+=" use_system_harfbuzz=true"
-%endif
-%if %{with system_freetype}
 myconf_gn+=" use_system_freetype=true"
-%endif
 myconf_gn+=" use_system_cares=true"
 %if %{with system_nghttp2}
 myconf_gn+=" use_system_nghttp2=true"
@@ -1271,7 +1252,7 @@ rsync -av --exclude '*.pak.info' locales %{buildroot}%{_libdir}/electron/
 
 
 install -pm 0755 electron                -t %{buildroot}%{_libdir}/electron/
-install -pm 0755 chrome_crashpad_handler -t %{buildroot}%{_libdir}/electron/
+install -pm 0755 chrome_crashpad_handler -t %{buildroot}%{_libdir}/electron/ ||true
 install -pm 0755 libEGL.so               -t %{buildroot}%{_libdir}/electron/
 install -pm 0755 libGLESv2.so            -t %{buildroot}%{_libdir}/electron/
 install -pm 0755 libqt5_shim.so          -t %{buildroot}%{_libdir}/electron/ ||true
@@ -1296,6 +1277,16 @@ cp /dev/stdin %{buildroot}%{_rpmconfigdir}/macros.d/macros.electron <<"EOF"
 EOF
 chmod -v 644 %{buildroot}%{_rpmconfigdir}/macros.d/macros.electron
 
+#help debugedit find the source files
+ln -srv third_party/emoji-segmenter/src/emoji_presentation_scanner.c -t out/Release
+ln -srv third_party/emoji-segmenter/src/emoji_presentation_scanner.rl -t out/Release
+ln -srv third_party/angle/src/compiler/translator/glslang.l -t out/Release
+ln -srv third_party/angle/src/compiler/preprocessor/preprocessor.l -t out/Release
+ln -srv third_party -t out/Release
+ln -srv third_party/libvpx -t third_party/libvpx/source/libvpx/third_party
+ln -srv third_party -t third_party/libvpx/source/libvpx/vp8
+ln -srv third_party -t third_party/libvpx/source/libvpx/vp9
+
 %files
 %license electron/LICENSE out/Release/LICENSES.chromium.html
 %{_bindir}/electron
@@ -1318,6 +1309,9 @@ chmod -v 644 %{buildroot}%{_rpmconfigdir}/macros.d/macros.electron
 %doc electron/docs
 
 %changelog
+* Wed Mar 08 2023 Sérgio Basto <sergio@serjux.com> - 22.3.0-2
+- 22.3.0
+
 * Mon Dec 26 2022 Sérgio Basto <sergio@serjux.com> - 21.3.2-3
 - relax version of harfbuzz
 

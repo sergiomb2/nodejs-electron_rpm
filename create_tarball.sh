@@ -78,7 +78,7 @@ echo ">>>>>> Create LASTCHANGE(.committime) file"
 echo -n "LASTCHANGE=$(git log -1 --format=format:%H HEAD)" > build/util/LASTCHANGE
 # shellcheck disable=1091
 source build/util/LASTCHANGE
-echo -n "$(git log -1 --date=unix --format=format:%cd "$LASTCHANGE")" > build/util/LASTCHANGE.committime
+echo -n "$(git log -1 --date=unix --format=format:%cd $LASTCHANGE)" > build/util/LASTCHANGE.committime
 
 
 
@@ -175,7 +175,6 @@ keeplibs=(
     third_party/blink #Integral part of chrome
     third_party/boringssl #Factory has an ancient version, but upstream seems to have gave up on making it a shared library
     third_party/boringssl/src/third_party/fiat #Not in any distro
-    third_party/breakpad #Integral part of chrome
     # We don't need it (disable-catapult.patch)
     #third_party/catapult
     #third_party/catapult/common/py_vulcanize/third_party/rcssmin
@@ -213,8 +212,6 @@ keeplibs=(
     third_party/electron_node #Integral part of electron
     third_party/emoji-segmenter #not available as a shared library
     third_party/fdlibm #derived code, not vendored dep
-    third_party/harfbuzz-ng #There are new google files within this directory.
-    third_party/harfbuzz-ng/utils
     third_party/highway #Not in Leap
     third_party/hunspell #heavily forked version
     third_party/iccjpeg #not in any distro
@@ -227,9 +224,10 @@ keeplibs=(
     third_party/libaddressinput #seems not to be available as a separate library
     third_party/libaom #version in Factory is too old
     third_party/libaom/source/libaom/third_party/fastfeat
+    third_party/libaom/source/libaom/third_party/SVT-AV1
     third_party/libaom/source/libaom/third_party/vector
     third_party/libaom/source/libaom/third_party/x86inc
-    third_party/libavif #not availabe on 15.3
+    third_party/libavif #leap too old
     third_party/libgav1 #not in Factory yet, but available in unofficial repos. CONSIDER UNBUNDLING when any distro has it.
     third_party/libjxl #not in Leap
     third_party/libphonenumber #Depends on protobuf which cannot be unbundled
@@ -254,7 +252,6 @@ keeplibs=(
     third_party/metrics_proto #integral part of chrome
     third_party/modp_b64 #not in any distro
     third_party/node #javascript code
-    third_party/node/node_modules/polymer-bundler/lib/third_party/UglifyJS2/
     third_party/one_euro_filter #not in any distro
     third_party/openscreen #Integral part of chrome, needed even if you're building without.
     third_party/openscreen/src/third_party/mozilla #derived code, not vendored dependency
@@ -276,8 +273,6 @@ keeplibs=(
     third_party/rnnoise #use of private headers
     third_party/shell-encryption #not available on any distro, also heavily patched
     third_party/skia #integral part of chrome
-    third_party/skia/include/third_party/skcms #part of skia, not available as a separate library
-    third_party/skia/third_party/skcms #part of skia, not available as a separate library
     third_party/smhasher #not in Rawhide or Factory. AltLinux has it (libsmhasher) CONSIDER UNBUNDLING if we have it
     third_party/speech-dispatcher #Headers for a delay-loaded optional dependency
     third_party/sqlite #heavily forked version
@@ -307,12 +302,11 @@ keeplibs=(
     third_party/webrtc/rtc_base/third_party/sigslot #derived code, not vendored dep
     third_party/webrtc_overrides #Integral part of chrome
     third_party/widevine #Integral part of chrome. Needed.
-    third_party/wayland/protocol #added chromium code
     third_party/wayland/stubs #added chromium code
     third_party/wayland/wayland_scanner_wrapper.py #wrapper script
     third_party/wayland-protocols/gtk/gdk/wayland/protocol #Imagine downloading 100MB of gtk source just to get one file.
-    third_party/wayland-protocols/mesa #egl-wayland-devel (Fedora) / libnvidia-egl-wayland1 (SUSE). Not in 15.3 CONSIDER UNBUNDLING when all distros have this
-    third_party/wayland-protocols/src #pkgconfig(wayland-protocols) — 15.3 too old CONSIDER UNBUNDLING once we drop it
+    third_party/wayland-protocols/mesa #egl-wayland-devel (Fedora) / libnvidia-egl-wayland1 (Tumbleweed). 15.4 has an old version that misses the file we need.
+    third_party/wayland-protocols/src #pkgconfig(wayland-protocols) — 15.4 too old CONSIDER UNBUNDLING once we drop it
     third_party/wayland-protocols/unstable #unknown origin. not in wayland-protocol-devel or elsewhere
     third_party/wuffs #not in any distro
     third_party/x11proto #derived code, not vendored dep
@@ -371,6 +365,7 @@ find . -type d -name __pycache__ -print0 | xargs -0 rm -rvf
 find . -type f -name '*.pyc' -print -delete
 
 echo ">>>>>> Remove non-free binaries"
+find . -type f -name "*.wasm" -print -delete
 find . -type f -name "*.jar" -print -delete
 find . -type f -name "*.exe" -print -delete
 find . -type f -name "*.node" -print -delete
@@ -381,7 +376,7 @@ find . -type f -name "*.o" -print -delete
 find . -type f -name "*.a" -print -delete
 
 #We use sponge to avoid a race condition between find and rm
-find -type f | sponge | xargs -P$(nproc) -- sh -c 'file "$@" | grep -v '\'' .*script'\'' | grep '\'' .*executable'\'' | tee /dev/stderr | sed '\''s/: .*//'\'' | xargs rm -fv'
+find -type f | sponge | xargs -P$(nproc) -- sh -c 'file -S "$@" | grep -v '\'' .*script'\'' | grep '\'' .*executable'\'' | tee /dev/stderr | sed '\''s/: .*//'\'' | xargs rm -fv'
 
 
 # Remove empty directories
@@ -391,11 +386,10 @@ popd || cleanup_and_exit 1
 
 echo ">>>>>> Hardlink duplicate files to reduce extraction time"
 
-fdupes -Sr src
+/usr/lib/rpm/fdupes_wrapper src
 
 echo ">>>>>> Create tarball"
-#I would like to use zst, as it decompresses MUCH faster, but unfortunately it is not supported by OBS diff view yet
-XZ_OPT="-T$(nproc) -e9 -vv" tar -vvcJf "${ELECTRON_PKGDIR}/${ELECTRON_PKGNAME}-${ELECTRON_PKGVERSION}.tar.xz" src
+ZSTD_CLEVEL=19 ZSTD_NBTHREADS=$(nproc) tar --zstd --sort=name -vvScf "${ELECTRON_PKGDIR}/${ELECTRON_PKGNAME}-${ELECTRON_PKGVERSION}.tar.zst" src
 if [ $? -ne 0 ]; then
     echo "ERROR: tar cf failed"
     cleanup_and_exit 1
