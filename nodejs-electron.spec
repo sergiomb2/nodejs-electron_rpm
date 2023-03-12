@@ -46,7 +46,7 @@ BuildArch:      i686
 %bcond_without pipewire
 
 %bcond_without swiftshader
-%ifarch %ix86 x86_64 %arm
+%ifarch %ix86 x86_64 %x86_64 %arm
 #Use subzero as swiftshader backend instead of LLVM
 %bcond_without subzero
 %else
@@ -85,6 +85,7 @@ BuildArch:      i686
 
 %endif #with clang
 
+%bcond_with lld
 #Mold succeeds on ix86 but seems to produce corrupt binaries (no build-id)
 %bcond_with mold
 
@@ -185,8 +186,8 @@ BuildArch:      i686
 
 
 Name:           nodejs-electron
-Version:        22.3.0
-Release:        2%{?dist}
+Version:        22.3.2
+Release:        1%{?dist}
 Summary:        Build cross platform desktop apps with JavaScript, HTML, and CSS
 License:        AFL-2.0 AND Apache-2.0 AND blessing AND BSD-2-Clause AND BSD-3-Clause AND BSD-Protection AND BSD-Source-Code AND bzip2-1.0.6 AND IJG AND ISC AND LGPL-2.0-or-later AND LGPL-2.1-or-later AND MIT AND MIT-CMU AND MIT-open-group AND (MPL-1.1 OR GPL-2.0-or-later OR LGPL-2.1-or-later) AND MPL-2.0 AND OpenSSL AND SGI-B-2.0 AND SUSE-Public-Domain AND X11
 Group:          Development/Languages/NodeJS
@@ -339,6 +340,25 @@ Patch3098:      document_loader-private-DecodedBodyData.patch
 Patch3099:      crashpad-elf_image_reader-ProgramHeaderTableSpecific-expected-unqualified-id.patch
 Patch3100:      first_party_set_parser-IssueWithMetadata-no-known-conversion.patch
 Patch3101:      print_dialog_gtk-no-kEnableOopPrintDriversJobPrint.patch
+Patch3102:      angle-ShaderVars-missing-uint32_t.patch
+Patch3103:      openscreen-gcc13-missing-headers.patch
+Patch3104:      perfetto-uuid-missing-uint8_t.patch
+Patch3105:      swiftshader-LRUCache-missing-uint64_t.patch
+Patch3106:      vulkan_memory_allocator-vk_mem_alloc-missing-snprintf.patch
+Patch3107:      profiler-missing-uintptr_t.patch
+Patch3108:      components-gcc13-missing-headers.patch
+Patch3109:      one_writer_seqlock-missing-uintptr_t.patch
+Patch3110:      bluetooth_uuid-missing-uint8_t.patch
+Patch3111:      broker_file_permission-missing-uint64_t.patch
+Patch3112:      net-third_party-quiche-gcc13-missing-headers.patch
+Patch3113:      webrtc-base64-missing-uint8_t.patch
+Patch3114:      ui-gcc13-missing-headers.patch
+Patch3115:      net-gcc13-missing-headers.patch
+Patch3116:      extensions-gcc13-missing-headers.patch
+Patch3117:      target_property-missing-uint32_t.patch
+Patch3118:      gpu_feature_info-missing-uint32_t.patch
+Patch3119:      blink-gcc13-missing-headers.patch
+Patch3120:      effect_paint_property_node-Wchanges-meaning.patch
 
 %if %{with clang}
 BuildRequires:  clang
@@ -361,7 +381,6 @@ BuildRequires:  cmake(Crc32c)
 %endif
 BuildRequires:  double-conversion-devel
 BuildRequires:  desktop-file-utils
-BuildRequires:  fdupes
 %if 0%{?fedora}
 BuildRequires:  flatbuffers-compiler
 %endif
@@ -402,7 +421,7 @@ BuildRequires:  llvm-devel
 %if %{with mold}
 BuildRequires:  mold
 %endif
-%ifarch %ix86 x86_64
+%ifarch %ix86 x86_64 %x86_64
 BuildRequires:  nasm
 %endif
 %if 0%{?suse_version}
@@ -423,7 +442,6 @@ BuildRequires:  python3-json5
 BuildRequires:  python3-mako
 BuildRequires:  python3-ply
 BuildRequires:  python3-six
-BuildRequires:  rsync
 BuildRequires:  snappy-devel
 %if 0%{?suse_version}
 BuildRequires:  update-desktop-files
@@ -759,7 +777,7 @@ export CXXFLAGS="${CXXFLAGS} -Wno-class-memaccess"
 # REDUCE DEBUG for C++ as it gets TOO large due to “heavy hemplate use in Blink”. See symbol_level below and chromium-102-compiler.patch
 export CXXFLAGS="$(echo ${CXXFLAGS} | sed -e 's/-g / /g' -e 's/-g$//g')"
 
-%ifnarch x86_64
+%ifnarch x86_64 %x86_64
 export CFLAGS="$(echo ${CFLAGS} | sed -e 's/-g /-g1 /g' -e 's/-g$/-g1/g')"
 %endif
 
@@ -773,33 +791,23 @@ export LDFLAGS="$LDFLAGS -Wl,--gc-keep-exported"
 
 
 %if %{with clang}
-
-
 export CC=clang
 export CXX=clang++
 export AR=llvm-ar
 export NM=llvm-nm
 export RANLIB=llvm-ranlib
-
 # else with clang
 %else
-
-
 %ifarch %ix86 %arm
 #try to reduce memory
 %if %{without lld} && %{without mold}
-
 %if %{with gold}
 export LDFLAGS="${LDFLAGS} -Wl,--no-map-whole-files -Wl,--no-keep-memory -Wl,--no-keep-files-mapped"
 %else
 export LDFLAGS="${LDFLAGS} -Wl,--no-keep-memory -Wl,--hash-size=30 -Wl,--reduce-memory-overheads"
 %endif
-
 %endif #without lld
 %endif #ifarch ix86 arm
-
-
-
 
 %if 0%{?suse_version} >= 1550 || 0%{?sle_version} >= 150600 || 0%{?fedora}
 export CC=gcc
@@ -844,7 +852,7 @@ export LDFLAGS="${LDFLAGS} -Wl,--no-keep-memory -Wl,--hash-size=30 -Wl,--reduce-
 %endif
 export LDFLAGS="$LDFLAGS --param ggc-min-expand=30 --param ggc-min-heapsize=4096"
 %endif
-export LDFLAGS="$LDFLAGS --param lto-max-streaming-parallelism=1"
+export LDFLAGS="$LDFLAGS -flto=1 --param lto-max-streaming-parallelism=1"
 %endif
 
 gn_system_libraries=(
@@ -985,7 +993,7 @@ myconf_gn+=" use_custom_libcxx=false"
 %ifarch %ix86
 myconf_gn+=" host_cpu=\"x86\""
 %endif
-%ifarch x86_64
+%ifarch x86_64 %x86_64
 myconf_gn+=" host_cpu=\"x64\""
 %endif
 %ifarch aarch64
@@ -1058,7 +1066,7 @@ myconf_gn+=" enable_js_type_check=false"
 # blink (HTML engine) and v8 (js engine) are template-heavy, trying to compile them with full debug leads to linker errors
 %ifnarch %ix86 %arm aarch64
 %if %{without lto}
-myconf_gn+=" symbol_level=2"
+myconf_gn+=" symbol_level=1"
 %else
 myconf_gn+=" symbol_level=1"
 %endif
@@ -1086,6 +1094,7 @@ myconf_gn+=" enable_reporting=false"
 myconf_gn+=" build_with_tflite_lib=false"
 myconf_gn+=" build_tflite_with_xnnpack=false"
 myconf_gn+=" safe_browsing_mode=0"
+myconf_gn+=" enable_maldoca=false"
 myconf_gn+=" enable_captive_portal_detection=false"
 myconf_gn+=" enable_browser_speech_service=false"
 myconf_gn+=" enable_speech_service=false"
@@ -1110,6 +1119,14 @@ myconf_gn+=" enable_paint_preview=false"
 myconf_gn+=" enable_remoting=false"
 myconf_gn+=" enable_media_remoting=false"
 myconf_gn+=" enable_service_discovery=false"
+
+#disable some debug/tracing hooks, they increase size and we do not build chrome://tracing anyway (see disable-catapult.patch)
+myconf_gn+=" enable_trace_logging=false"
+myconf_gn+=" optional_trace_events_enabled=false"
+myconf_gn+=" use_runtime_vlog=false"
+myconf_gn+=" rtc_disable_logging=true"
+myconf_gn+=" rtc_disable_metrics=true"
+myconf_gn+=" rtc_disable_trace_events=true"
 
 
 
@@ -1218,13 +1235,9 @@ myconf_gn+=" ffmpeg_branding=\"Chrome\""
 #  https://bugs.chromium.org/p/chromium/issues/detail?id=642016
 gn gen out/Release --args="import(\"//electron/build/args/release.gn\") ${myconf_gn}"
 
-#Build the supplementary stuff first to notice errors earlier bc building electron itself takes several hours.
-ninja -v %{?_smp_mflags} -C out/Release chromium_licenses
-ninja -v %{?_smp_mflags} -C out/Release copy_headers
-ninja -v %{?_smp_mflags} -C out/Release version
 
 # dump the linker command line (if any) in case of failure
-ninja -v %{?_smp_mflags} -C out/Release electron || (cat out/Release/*.rsp | sed 's/ /\n/g' && false)
+ninja -v %{?_smp_mflags} -C out/Release chromium_licenses copy_headers version electron || (cat out/Release/*.rsp | sed 's/ /\n/g' && false)
 
 
 
@@ -1245,10 +1258,11 @@ install -pm 0644 %{SOURCE12} %{buildroot}%{_datadir}/icons/hicolor/symbolic/apps
 desktop-file-install --dir %{buildroot}%{_datadir}/applications/ %{SOURCE11}
 
 pushd out/Release
-rsync -av *.bin *.pak %{buildroot}%{_libdir}/electron/
+cp -lv *.bin *.pak -t %{buildroot}%{_libdir}/electron/
 install -pm 0644 resources/default_app.asar -t %{buildroot}%{_libdir}/electron/resources/
 
-rsync -av --exclude '*.pak.info' locales %{buildroot}%{_libdir}/electron/
+cp -lrv locales -t %{buildroot}%{_libdir}/electron/
+rm -v %{buildroot}%{_libdir}/electron/locales/*.pak.info
 
 
 install -pm 0755 electron                -t %{buildroot}%{_libdir}/electron/
@@ -1268,7 +1282,7 @@ popd
 mkdir -p "%{buildroot}%{_sysconfdir}/webapps"
 mkdir -p "%{buildroot}%{_datadir}/webapps"
 
-rsync -av out/Release/gen/node_headers/include/node/* %{buildroot}%{_includedir}/electron
+cp -lrvT out/Release/gen/node_headers/include/node %{buildroot}%{_includedir}/electron
 
 # Install electron.macros
 mkdir -p %{buildroot}%{_rpmconfigdir}/macros.d
@@ -1286,6 +1300,7 @@ ln -srv third_party -t out/Release
 ln -srv third_party/libvpx -t third_party/libvpx/source/libvpx/third_party
 ln -srv third_party -t third_party/libvpx/source/libvpx/vp8
 ln -srv third_party -t third_party/libvpx/source/libvpx/vp9
+ln -srv third_party -t third_party/libvpx/source
 
 %files
 %license electron/LICENSE out/Release/LICENSES.chromium.html
@@ -1309,6 +1324,9 @@ ln -srv third_party -t third_party/libvpx/source/libvpx/vp9
 %doc electron/docs
 
 %changelog
+* Fri Mar 10 2023 Sérgio Basto <sergio@serjux.com> - 22.3.0-3
+- 22.3.2
+
 * Wed Mar 08 2023 Sérgio Basto <sergio@serjux.com> - 22.3.0-2
 - 22.3.0
 
