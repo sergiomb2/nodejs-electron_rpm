@@ -77,15 +77,15 @@ BuildArch:      i686
 # You can try different ones if it has problems.
 # arm64 reports relocation errors with BFD.
 %ifarch aarch64
-%bcond_without gold
+%bcond_with gold
 %else
-%bcond_without gold
+%bcond_with gold
 %endif
 
 
 %endif #with clang
 
-%bcond_with lld
+%bcond_without lld
 #Mold succeeds on ix86 but seems to produce corrupt binaries (no build-id)
 %bcond_with mold
 
@@ -134,6 +134,13 @@ BuildArch:      i686
 %bcond_with system_nvctrl
 %endif
 
+%if 0%{?suse_version} >= 1550 || 0%{?sle_version} >= 150600 || 0%{?fedora_version}
+%bcond_without link_vulkan
+%else
+%bcond_with link_vulkan
+%endif
+
+
 
 
 
@@ -151,7 +158,7 @@ BuildArch:      i686
 %bcond_with system_histogram
 %endif
 
-%if 0%{?fedora} >= 38
+%if 0%{?fedora} >= 37
 %bcond_without llhttp_8
 %else
 %bcond_with llhttp_8
@@ -161,7 +168,14 @@ BuildArch:      i686
 # enable this when boo#1203378 and boo#1203379 get fixed
 %if 0%{?suse_version} >= 1550 || 0%{?sle_version} >= 150600 || 0%{?fedora} >= 37
 %if %{without clang}
-%bcond_with system_abseil
+%bcond_without system_abseil
+
+%if 0%{?suse_version} >= 1550 || 0%{?sle_version} >= 150600 || 0%{?fedora} >= 39
+%bcond_without abseil_2023
+%else
+%bcond_with abseil_2023
+%endif
+
 %else
 # Clang has several problems with std::optional used by system abseil
 %bcond_with system_abseil
@@ -186,8 +200,8 @@ BuildArch:      i686
 
 
 Name:           nodejs-electron
-Version:        22.3.2
-Release:        1%{?dist}
+Version:        22.3.21
+Release:        2%{?dist}
 Summary:        Build cross platform desktop apps with JavaScript, HTML, and CSS
 License:        AFL-2.0 AND Apache-2.0 AND blessing AND BSD-2-Clause AND BSD-3-Clause AND BSD-Protection AND BSD-Source-Code AND bzip2-1.0.6 AND IJG AND ISC AND LGPL-2.0-or-later AND LGPL-2.1-or-later AND MIT AND MIT-CMU AND MIT-open-group AND (MPL-1.1 OR GPL-2.0-or-later OR LGPL-2.1-or-later) AND MPL-2.0 AND OpenSSL AND SGI-B-2.0 AND SUSE-Public-Domain AND X11
 Group:          Development/Languages/NodeJS
@@ -233,7 +247,6 @@ Patch25:        electron-16-system-node-headers.patch
 Patch39:        support-i386.patch
 # from https://sources.debian.org/patches/chromium/103.0.5060.53-1/disable/catapult.patch/
 Patch67:        disable-catapult.patch
-Patch68:        do-not-build-libvulkan.so.patch
 Patch69:        nasm-generate-debuginfo.patch
 Patch70:        disable-fuses.patch
 Patch71:        enable-jxl.patch
@@ -244,8 +257,11 @@ Patch74:        common.gypi-remove-fno-omit-frame-pointer.patch
 Patch75:        gcc-asmflags.patch
 # https://sources.debian.org/patches/chromium/108.0.5359.124-1/disable/tests.patch/
 Patch76:        disable-devtools-tests.patch
+Patch77:        angle_link_glx.patch
+Patch78:        rdynamic.patch
 
 # PATCHES to use system libs
+Patch1000:      do-not-build-libvulkan.so.patch
 Patch1002:      chromium-system-libusb.patch
 Patch1017:      system-libdrm.patch
 # http://svnweb.mageia.org/packages/updates/7/chromium-browser-stable/current/SOURCES/chromium-74-pdfium-system-libopenjpeg2.patch?view=markup
@@ -359,6 +375,15 @@ Patch3117:      target_property-missing-uint32_t.patch
 Patch3118:      gpu_feature_info-missing-uint32_t.patch
 Patch3119:      blink-gcc13-missing-headers.patch
 Patch3120:      effect_paint_property_node-Wchanges-meaning.patch
+Patch3121:      services-network-optional-explicit-constructor.patch
+# PATCH-FIX-UPSTREAM - https://swiftshader-review.googlesource.com/c/SwiftShader/+/70528
+Patch3200:      d0aa9ad.patch
+# PATCH-FIX-UPSTREAM - https://swiftshader-review.googlesource.com/c/SwiftShader/+/70328
+Patch3201:      647d3d2.patch
+Patch3202:      mojom-python3.12-imp.patch
+# https://src.fedoraproject.org/rpms/qt6-qtwebengine/blob/rawhide/f/Partial-migration-from-imp-to-importlib.patch
+Patch3203:      Partial-migration-from-imp-to-importlib.patch
+Patch3204:      re2-11-StringPiece.patch
 
 %if %{with clang}
 BuildRequires:  clang
@@ -385,7 +410,6 @@ BuildRequires:  desktop-file-utils
 BuildRequires:  flatbuffers-compiler
 %endif
 BuildRequires:  flatbuffers-devel
-BuildRequires:  git-core
 BuildRequires:  gn >= 0.1807
 BuildRequires:  gperf
 %if %{with system_histogram}
@@ -429,11 +453,9 @@ BuildRequires:  ninja >= 1.7.2
 %else
 BuildRequires:  ninja-build >= 1.7.2
 %endif
-%if 0%{?sle_version} == 150300
-BuildRequires:  nodejs16
-BuildRequires:  npm16
+%if 0%{?fedora} >= 37
+BuildRequires:  nodejs-npm
 %else
-BuildRequires:  nodejs >= 16
 BuildRequires:  npm
 %endif
 BuildRequires:  pkgconfig
@@ -487,6 +509,9 @@ BuildRequires:  pkgconfig(absl_time)
 BuildRequires:  pkgconfig(absl_type_traits)
 BuildRequires:  pkgconfig(absl_utility)
 BuildRequires:  pkgconfig(absl_variant)
+%if %{with abseil_2023}
+BuildRequires:  pkgconfig(absl_core_headers) >= 20230000
+%endif
 %endif
 BuildRequires:  pkgconfig(alsa)
 BuildRequires:  pkgconfig(cairo) >= 1.6
@@ -502,7 +527,7 @@ BuildRequires:  pkgconfig(glib-2.0)
 BuildRequires:  pkgconfig(glproto)
 BuildRequires:  pkgconfig(gtest)
 BuildRequires:  pkgconfig(gtk+-3.0)
-BuildRequires:  pkgconfig(harfbuzz) >= 2
+BuildRequires:  pkgconfig(harfbuzz) >= 3
 %if %{with harfbuzz_5}
 BuildRequires:  pkgconfig(harfbuzz) >= 5
 %endif
@@ -586,6 +611,9 @@ BuildRequires:  spirv-headers-devel
 %endif
 BuildRequires:  pkgconfig(SPIRV-Tools) >= 2022.2
 %endif
+%if %{with link_vulkan}
+BuildRequires:  pkgconfig(vulkan) >= 1.3
+%endif
 BuildRequires:  pkgconfig(xkbcommon)
 BuildRequires:  pkgconfig(xshmfence)
 BuildRequires:  pkgconfig(zlib)
@@ -599,8 +627,8 @@ BuildRequires:  pkgconfig(vpx) >= 1.8.2
 %endif
 %if %{without clang}
 %if 0%{?suse_version} >= 1550 || 0%{?sle_version} >= 150600 || 0%{?fedora}
-BuildRequires:  gcc >= 11
-BuildRequires:  gcc-c++ >= 11
+BuildRequires:  gcc >= 12
+BuildRequires:  gcc-c++ >= 12
 %else
 BuildRequires:  gcc12-PIE
 BuildRequires:  gcc12-c++
@@ -616,10 +644,12 @@ Requires:       google-roboto-fonts
 Recommends:     noto-coloremoji-fonts
 
 # This required library is dlopened
+%if %{without link_vulkan}
 %ifarch %ix86 %arm
 Requires:       libvulkan.so.1
 %else
 Requires:       libvulkan.so.1()(64bit)
+%endif
 %endif
 
 Provides:       electron
@@ -673,6 +703,10 @@ test $(grep ^node_module_version electron/build/args/all.gn | sed 's/.* = //') =
 %if %{without system_abseil}
 patch -R -p1 < %PATCH1054
 patch -R -p1 < %PATCH1076
+%endif
+
+%if %{with system_abseil} && %{with abseil_2023}
+patch -R -p1 < %PATCH1054
 %endif
 
 %if %{without ffmpeg_5}
@@ -969,7 +1003,9 @@ gn_system_libraries+=( libyuv )
 
 build/linux/unbundle/replace_gn_files.py --system-libraries ${gn_system_libraries[@]}
 
-
+%if %{with link_vulkan}
+find third_party/angle/src/third_party/volk -type f ! -name "*.gn" -a ! -name "*.gni"  -delete
+%endif
 
 %if %{with system_nghttp2}
 find third_party/electron_node/deps/nghttp2 -type f ! -name "*.gn" -a ! -name "*.gni" -a ! -name "*.gyp" -a ! -name "*.gypi" -delete
@@ -1041,8 +1077,18 @@ myconf_gn+=" is_component_ffmpeg=true"
 myconf_gn+=" use_cups=true"
 myconf_gn+=" use_aura=true"
 
-# always load system libvulkan.so
+# link libvulkan.so and libGLX.so instead of dlopening
 myconf_gn+=" angle_use_custom_libvulkan=false"
+%if %{with link_vulkan}
+myconf_gn+=" angle_shared_libvulkan=false"
+%endif
+myconf_gn+=" angle_link_glx=true"
+
+#Use faster flat_map instead of fallback std::unordered_map implementation in ANGLE.
+#Upstream sets it by default to the value of is_clang with the comment “has trouble supporting MSVC”.
+#This is supposed to be enabled in chromium and compiles fine with GCC.
+myconf_gn+=' angle_enable_abseil=true'
+
 
 # do not build PDF support
 myconf_gn+=" enable_pdf=false"
@@ -1066,7 +1112,7 @@ myconf_gn+=" enable_js_type_check=false"
 # blink (HTML engine) and v8 (js engine) are template-heavy, trying to compile them with full debug leads to linker errors
 %ifnarch %ix86 %arm aarch64
 %if %{without lto}
-myconf_gn+=" symbol_level=1"
+myconf_gn+=" symbol_level=2"
 %else
 myconf_gn+=" symbol_level=1"
 %endif
@@ -1145,14 +1191,20 @@ myconf_gn+=" use_gnome_keyring=false"
 myconf_gn+=" use_unofficial_version_number=false"
 myconf_gn+=" use_lld=false"
 %if %{with vaapi}
-myconf_gn+=" use_vaapi=true"
+myconf_gn+=' use_vaapi=true'
+myconf_gn+=' use_vaapi_x11=true'
+myconf_gn+=' use_libgav1_parser=true'
+%else
+myconf_gn+=' use_vaapi=false'
+myconf_gn+=' use_vaapi_x11=false'
+myconf_gn+=' use_libgav1_parser=false'
 %endif
+
 myconf_gn+=" treat_warnings_as_errors=false"
 myconf_gn+=" use_dbus=true"
 myconf_gn+=" enable_vulkan=true"
 myconf_gn+=" icu_use_data_file=false"
 myconf_gn+=" media_use_openh264=false"
-myconf_gn+=" use_libgav1_parser=true"
 myconf_gn+=" rtc_use_h264=false"
 myconf_gn+=" use_v8_context_snapshot=true"
 myconf_gn+=" v8_use_external_startup_data=true"
@@ -1324,6 +1376,21 @@ ln -srv third_party -t third_party/libvpx/source
 %doc electron/docs
 
 %changelog
+* Wed Aug 30 2023 Sérgio Basto <sergio@serjux.com> - 22.3.21-2
+- Update BRs
+
+* Mon Aug 28 2023 Sérgio Basto <sergio@serjux.com> - 22.3.21-1
+- Update to 22.3.21
+
+* Tue Jun 27 2023 Sérgio Basto <sergio@serjux.com> - 22.3.14-1
+- Update to 22.3.14
+
+* Wed Jun 21 2023 Sérgio Basto <sergio@serjux.com> - 22.3.11-2
+- disable golden, enable lld
+
+* Sat May 27 2023 Sérgio Basto <sergio@serjux.com> - 22.3.2-2
+- Rebuild for ffmepg 6
+
 * Fri Mar 10 2023 Sérgio Basto <sergio@serjux.com> - 22.3.0-3
 - 22.3.2
 
