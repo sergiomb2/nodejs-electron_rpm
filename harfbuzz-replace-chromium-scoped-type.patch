@@ -16,18 +16,6 @@ Commit-Queue: Munira Tursunova <moonira@google.com>
 Cr-Commit-Position: refs/heads/main@{#1054692}
 ---
 
-diff --git a/components/paint_preview/DEPS b/components/paint_preview/DEPS
-index bcc6288..28f2c7a 100644
---- a/components/paint_preview/DEPS
-+++ b/components/paint_preview/DEPS
-@@ -3,7 +3,6 @@
-   "+components/memory_pressure",
-   "+mojo/public/cpp",
-   "+third_party/harfbuzz-ng/src/src",
--  "+third_party/harfbuzz-ng/utils/hb_scoped.h",
-   "+third_party/skia/include/core",
-   "+ui/gfx/geometry",
- ]
 diff --git a/components/paint_preview/common/BUILD.gn b/components/paint_preview/common/BUILD.gn
 index 377dc92..c39757d 100644
 --- a/components/paint_preview/common/BUILD.gn
@@ -212,6 +200,15 @@ index 86c289c..98cbd7a 100644
  
    if (!face || !hb_ot_color_has_palettes(face.get()))
      return absl::nullopt;
+@@ -49,7 +49,7 @@ absl::optional<uint16_t> OpenTypeCpalLoo
+ Vector<Color> OpenTypeCpalLookup::RetrieveColorRecords(
+     sk_sp<SkTypeface> typeface,
+     unsigned palette_index) {
+-  HbScoped<hb_face_t> face(HbFaceFromSkTypeface(typeface));
++  hb::unique_ptr<hb_face_t> face(HbFaceFromSkTypeface(typeface));
+
+   if (!face) {
+     return Vector<Color>();
 diff --git a/third_party/blink/renderer/platform/fonts/opentype/variable_axes_names.cc b/third_party/blink/renderer/platform/fonts/opentype/variable_axes_names.cc
 index ebab0fa8..4ecd886 100644
 --- a/third_party/blink/renderer/platform/fonts/opentype/variable_axes_names.cc
@@ -257,9 +254,9 @@ index b4bb5a3..b6ee0a8f 100644
  // clang-format on
  
 @@ -52,7 +53,6 @@
- #include "third_party/blink/renderer/platform/resolution_units.h"
  #include "third_party/blink/renderer/platform/wtf/hash_map.h"
  #include "third_party/blink/renderer/platform/wtf/math_extras.h"
+ #include "third_party/blink/renderer/platform/wtf/text/character_names.h"
 -#include "third_party/harfbuzz-ng/utils/hb_scoped.h"
  #include "third_party/skia/include/core/SkPaint.h"
  #include "third_party/skia/include/core/SkPath.h"
@@ -391,7 +388,7 @@ diff --git a/third_party/blink/renderer/platform/fonts/shaping/harfbuzz_font_cac
 index 763f3a3..c50910df 100644
 --- a/third_party/blink/renderer/platform/fonts/shaping/harfbuzz_font_cache.cc
 +++ b/third_party/blink/renderer/platform/fonts/shaping/harfbuzz_font_cache.cc
-@@ -5,7 +5,6 @@
+@@ -5,12 +5,11 @@
  #include "third_party/blink/renderer/platform/fonts/shaping/harfbuzz_font_cache.h"
  #include "third_party/blink/renderer/platform/fonts/shaping/harfbuzz_face.h"
  #include "third_party/blink/renderer/platform/fonts/shaping/harfbuzz_font_data.h"
@@ -399,17 +396,35 @@ index 763f3a3..c50910df 100644
  
  namespace blink {
  
+ HbFontCacheEntry::HbFontCacheEntry(hb_font_t* font)
+-    : hb_font_(HbScoped<hb_font_t>(font)),
++    : hb_font_(hb::unique_ptr<hb_font_t>(font)),
+       hb_font_data_(std::make_unique<HarfBuzzFontData>()) {}
+ 
+ HbFontCacheEntry::~HbFontCacheEntry() = default;
 diff --git a/third_party/blink/renderer/platform/fonts/shaping/harfbuzz_font_cache.h b/third_party/blink/renderer/platform/fonts/shaping/harfbuzz_font_cache.h
 index 1b0accf..eaedd0b 100644
 --- a/third_party/blink/renderer/platform/fonts/shaping/harfbuzz_font_cache.h
 +++ b/third_party/blink/renderer/platform/fonts/shaping/harfbuzz_font_cache.h
-@@ -7,7 +7,6 @@
+@@ -7,9 +7,9 @@
  
  #include "third_party/blink/renderer/platform/fonts/font_metrics.h"
  #include "third_party/blink/renderer/platform/fonts/unicode_range_set.h"
 -#include "third_party/harfbuzz-ng/utils/hb_scoped.h"
  
- namespace blink {
+ #include <hb.h>
++#include <hb-cplusplus.hh>
+ 
+ #include <memory>
+ 
+@@ -39,7 +39,7 @@ class HbFontCacheEntry : public RefCount
+  private:
+   explicit HbFontCacheEntry(hb_font_t* font);
+ 
+-  HbScoped<hb_font_t> hb_font_;
++  hb::unique_ptr<hb_font_t> hb_font_;
+   std::unique_ptr<HarfBuzzFontData> hb_font_data_;
+ };
  
 diff --git a/third_party/blink/renderer/platform/fonts/shaping/harfbuzz_font_data.h b/third_party/blink/renderer/platform/fonts/shaping/harfbuzz_font_data.h
 index caf5d49..0d4b6f9 100644
@@ -445,7 +460,7 @@ index 522e164d..4b64e1b 100644
        "src/src/hb-deprecated.h",
        "src/src/hb-face.h",
        "src/src/hb-font.h",
-@@ -409,15 +410,9 @@
+@@ -409,11 +410,6 @@
    }
  }
  
@@ -454,21 +469,9 @@ index 522e164d..4b64e1b 100644
 -  deps = [ "//third_party:freetype_harfbuzz" ]
 -}
 -
- fuzzer_test("hb_shape_fuzzer") {
-   sources = [ "fuzz/hb_shape_fuzzer.cc" ]
-   deps = [
--    ":hb_scoped_util",
-     "//base",
-     "//third_party:freetype_harfbuzz",
-   ]
-@@ -427,7 +422,6 @@
- fuzzer_test("hb_subset_fuzzer") {
-   sources = [ "fuzz/hb_subset_fuzzer.cc" ]
-   deps = [
--    ":hb_scoped_util",
-     "//base",
-     "//third_party:freetype_harfbuzz",
-   ]
+ # Not all checkouts have a //base directory.
+ if (build_with_chromium) {
+   fuzzer_test("hb_shape_fuzzer") {
 diff --git a/third_party/harfbuzz-ng/utils/hb_scoped.h b/third_party/harfbuzz-ng/utils/hb_scoped.h
 deleted file mode 100644
 index 887f6b90..0000000
