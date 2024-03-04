@@ -12,7 +12,7 @@
 # case the license is the MIT License). An "Open Source License" is a
 # license that conforms to the Open Source Definition (Version 1.9)
 # published by the Open Source Initiative.
-
+# 
 # Please submit bugfixes or comments via https://bugs.opensuse.org/
 #
 
@@ -24,7 +24,7 @@
 
 %define mod_name electron
 # https://github.com/nodejs/node/blob/main/doc/abi_version_registry.json
-%define abi_version 118
+%define abi_version 119
 
 # Do not provide libEGL.so, etc…
 %define __provides_exclude ^lib.*\\.so.*$
@@ -66,21 +66,8 @@ BuildArch:      i686
 
 # Linker selection. GCC only. Default is BFD.
 # You can try different ones if it has problems.
-# arm64 reports relocation errors with BFD.
-# obj/third_party/electron_node/deps/uv/uv/threadpool.o: in function `init_once':
-# /home/abuild/rpmbuild/BUILD/src/out/Release/../../third_party/electron_node/deps/uv/src/threadpool.c:254:(.text+0x2bc): relocation truncated to fit: R_AARCH64_CALL26 against symbol `pthread_atfork' defined in .text section in /usr/lib64/libc_nonshared.a(pthread_atfork.oS)
-# obj/third_party/electron_node/node_lib/embed_helpers.o: in function `std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > node::SPrintFImpl<char const*>(char const*, char const*&&)':
-# /home/abuild/rpmbuild/BUILD/src/out/Release/../../third_party/electron_node/src/debug_utils-inl.h:76:(.text.unlikely._ZN4node11SPrintFImplIPKcJEEENSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEES2_OT_DpOT0_[_ZN4node11SPrintFImplIPKcJEEENSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEES2_OT_DpOT0_]+0x50): relocation truncated to fit: R_AARCH64_CALL26 against symbol `node::Assert(node::AssertionInfo const&)' defined in .text section in obj/third_party/electron_node/node_lib/node_errors.o
 
-%if 0%{?suse_version}
-%ifarch aarch64
-%bcond_without gold
-%else
 %bcond_with gold
-%endif
-%else
-%bcond_with gold
-%endif
 
 %endif #with clang
 
@@ -88,8 +75,7 @@ BuildArch:      i686
 #Mold succeeds on ix86 but seems to produce corrupt binaries (no build-id)
 %bcond_with mold
 
-%ifnarch %ix86 %arm aarch64
-# OBS does not have enough powerful machines to build with LTO on aarch64.
+%ifnarch %ix86 %arm
 
 %if (0%{?suse_version} >= 1550 || 0%{?sle_version} >= 150700 || 0%{?fedora})
 %bcond_without lto
@@ -130,11 +116,6 @@ BuildArch:      i686
 %bcond_with harfbuzz_5
 %endif
 
-%if 0%{?suse_version} >= 1550 || 0%{?sle_version} >= 150600 || 0%{?fedora} >= 40
-%bcond_without system_avif
-%else
-%bcond_with system_avif
-%endif
 
 %if 0%{?suse_version} >= 1550 || 0%{?sle_version} >= 150600
 %bcond_without system_yuv
@@ -151,6 +132,14 @@ BuildArch:      i686
 %bcond_with ffmpeg_5
 %bcond_with system_vpx
 %endif
+
+%if 0%{?suse_version} >= 1550 || 0%{?sle_version} >= 150700 || 0%{?fedora} >= 39
+%bcond_without bro_11
+%else
+%bcond_with bro_11
+%endif
+
+
 
 %if 0%{?fedora}
 %bcond_without system_llhttp
@@ -171,8 +160,10 @@ BuildArch:      i686
 %bcond_with system_vma
 %endif
 
-# Abseil is broken in Leap
-# enable this when boo#1203378 and boo#1203379 get fixed
+#requires `imageSequenceTrackPresent` and `enableParsingGainMapMetadata` both of which are only in post-1.0.0 nightlies
+%bcond_with system_avif
+
+# Some chromium code assumes absl::string_view is a typedef for std::string_view. This is not true on GCC7 systems such as Leap.
 %if 0%{?suse_version} >= 1550 || 0%{?sle_version} >= 150700 || 0%{?fedora} >= 37
 %bcond_without system_abseil
 
@@ -227,8 +218,8 @@ BuildArch:      i686
 
 
 Name:           nodejs-electron
-Version:        27.3.3
-Release:        2%{?dist}
+Version:        28.2.5
+Release:        1%{?dist}
 Summary:        Build cross platform desktop apps with JavaScript, HTML, and CSS
 License:        AFL-2.0 AND Apache-2.0 AND blessing AND BSD-2-Clause AND BSD-3-Clause AND BSD-Protection AND BSD-Source-Code AND bzip2-1.0.6 AND IJG AND ISC AND LGPL-2.0-or-later AND LGPL-2.1-or-later AND MIT AND MIT-CMU AND MIT-open-group AND (MPL-1.1 OR GPL-2.0-or-later OR LGPL-2.1-or-later) AND MPL-2.0 AND OpenSSL AND SGI-B-2.0 AND SUSE-Public-Domain AND X11 %{!?with_system_minizip: AND Zlib}
 Group:          Development/Languages/NodeJS
@@ -237,11 +228,6 @@ Source0:        %{mod_name}-%{version}.tar.zst
 Source1:        create_tarball.sh
 Source10:       electron-launcher.sh
 Source11:       electron.desktop
-# Shim generators for unbundling libraries
-Source50:       flatbuffers.gn
-Source51:       libsecret.gn
-Source52:       highway.gn
-Source53:       vulkan_memory_allocator.gn
 
 
 # Reverse upstream changes to be able to build against ffmpeg-4
@@ -255,6 +241,8 @@ Source417:      v8-icu73-alt_calendar.patch
 Source418:      v8-icu73-simple-case-folding.patch
 # and re2 10
 Source430:      replace-StringPiece-with-string_view.patch
+# and abseil 2022
+Source440:      pending_task_safety_flag-abseil-2022-nullability.patch
 
 
 # PATCHES for openSUSE-specific things
@@ -287,13 +275,11 @@ Patch81:        disable-tests.patch
 
 # PATCHES to use system libs
 Patch1000:      do-not-build-libvulkan.so.patch
-Patch1002:      chromium-system-libusb.patch
 Patch1017:      system-libdrm.patch
 # http://svnweb.mageia.org/packages/updates/7/chromium-browser-stable/current/SOURCES/chromium-74-pdfium-system-libopenjpeg2.patch?view=markup
 Patch1038:      pdfium-fix-system-libs.patch
 # https://sources.debian.org/patches/chromium/102.0.5005.115-1/system/zlib.patch/
 Patch1041:      system-zlib.patch
-Patch1044:      replace_gn_files-system-libs.patch
 Patch1045:      angle-system-xxhash.patch
 Patch1047:      cares_public_headers.patch
 Patch1048:      chromium-remove-bundled-roboto-font.patch
@@ -344,12 +330,14 @@ Source2033:      node-upgrade-llhttp-to-8.patch
 Patch2034:      swiftshader-LLVMJIT-AddressSanitizerPass-dead-code-remove.patch
 Patch2035:      RenderFrameHostImpl-use-after-free.patch
 Patch2037:      abseil-remove-unused-targets.patch
-Patch2039:      vulkan_memory_allocator-upgrade.patch
 # https://github.com/electron/electron/pull/40032
 Patch2040:      build-without-extensions.patch
 Patch2041:      chromium-117-blink-BUILD-mnemonic.patch
+%if %{without bro_11}
 Patch2042:      brotli-remove-shared-dictionary.patch
-Patch2044:      computed_style_base-nbsp.patch
+%else
+Source2042:     brotli-remove-shared-dictionary.patch
+%endif
 Patch2045:      libxml-2.12-xmlCtxtGetLastError-const.patch
 Patch2046:      chromium-118-sigtrap_system_ffmpeg.patch
 %if %{with system_minizip}
@@ -357,6 +345,8 @@ Source2047:     bundled-minizip.patch
 %else
 Patch2047:      bundled-minizip.patch
 %endif
+# https://sources.debian.org/patches/chromium/119.0.6045.199-1/fixes/atspi.patch/
+Patch2048:      atspi.patch
 
 # PATCHES that should be submitted upstream verbatim or near-verbatim
 Patch3016:      chromium-98-EnumTable-crash.patch
@@ -366,36 +356,17 @@ Patch3027:      electron-16-freetype-visibility-list.patch
 Patch3028:      electron-16-third_party-symbolize-missing-include.patch
 # From https://git.droidware.info/wchen342/ungoogled-chromium-fedora
 Patch3033:      chromium-94.0.4606.71-InkDropHost-crash.patch
-Patch3056:      async_shared_storage_database_impl-missing-absl-WrapUnique.patch
 # https://salsa.debian.org/chromium-team/chromium/-/blob/456851fc808b2a5b5c762921699994e957645917/debian/patches/upstream/nested-nested-nested-nested-nested-nested-regex-patterns.patch
 Patch3064:      nested-nested-nested-nested-nested-nested-regex-patterns.patch
 Patch3080:      compact_enc_det_generated_tables-Wnarrowing.patch
 Patch3096:      remove-date-reproducible-builds.patch
-Patch3106:      vulkan_memory_allocator-vk_mem_alloc-missing-snprintf.patch
-Patch3121:      services-network-optional-explicit-constructor.patch
-# https://src.fedoraproject.org/rpms/qt6-qtwebengine/blob/rawhide/f/Partial-migration-from-imp-to-importlib.patch
-Patch3203:      Partial-migration-from-imp-to-importlib.patch
-Patch3208:      mojo_ukm_recorder-missing-WrapUnique.patch
-Patch3209:      electron_browser_context-missing-variant.patch
-Patch3210:      electron_api_app-GetPathConstant-non-constexpr.patch
-Patch3213:      CVE-2023-38552-node-integrity-checks-according-to-policies.patch
-Patch3214:      CVE-2023-39333-node-create_dynamic_module-code-injection.patch
-Patch3215:      CVE-2023-45143-undici-cookie-leakage.patch
-Patch3216:      partition_root-attribute.patch
-Patch3217:      sensor_reading-missing-int64_t-size_t.patch
 Patch3218:      material_color_utilities-tones-missing-round.patch
-Patch3219:      utf_string_conversion_utils-missing-numeric_limits.patch
-Patch3220:      kwallet_dbus-missing-uint8_t.patch
-Patch3221:      page_content_annotations_common-remove-tflite.patch
-Patch3222:      decoder_buffer_side_data-missing-uint8_t.patch
-Patch3223:      absl-make_unique-missing-include.patch
-Patch3224:      autofill_i18n_parsing_expressions-constexpr.patch
-Patch3225:      simple_font_data-freetype-include.patch
 Patch3226:      perfetto-numeric_storage-double_t.patch
 Patch3227:      policy_templates-deterministic.patch
-Patch3228:      quiche-missing-absl-includes.patch
 Patch3229:      text_break_iterator-icu74-breakAllLineBreakClassTable-should-be-consistent.patch
-
+Patch3230:      web_local_frame_client-incomplete-WebBackgroundResourceFetchAssets.patch
+Patch3231:      local_frame-local_frame_client-incomplete-WebBackgroundResourceFetchAssets.patch
+Patch3232:      v8-instance-type-inl-constexpr-used-before-its-definition.patch
 
 %if %{with clang}
 BuildRequires:  clang
@@ -576,6 +547,7 @@ BuildRequires:  pkgconfig(libavutil) >= 57
 #requires av_stream_get_first_dts, see rhbz#2240127
 BuildRequires:  libavformat-free-devel >= %AVFORMAT_VER
 Requires: (ffmpeg-libs%{_isa} >= %RPMFUSION_VER or libavformat-free%{_isa} >= %AVFORMAT_VER)
+# have choice for libvpl.so.2()(64bit) needed by libavcodec-free: libvpl oneVPL
 %ifarch x86_64 %x86_64
 BuildRequires:  oneVPL
 %endif
@@ -588,6 +560,9 @@ BuildRequires:  pkgconfig(libavutil)
 %if %{with system_avif}
 # Needs avifRGBImage::maxThreads
 BuildRequires:  pkgconfig(libavif) >= 1
+%endif
+%if %{with bro_11}
+BuildRequires:  pkgconfig(libbrotlicommon) >= 1.1~
 %endif
 BuildRequires:  pkgconfig(libbrotlidec)
 BuildRequires:  pkgconfig(libbrotlienc)
@@ -744,6 +719,10 @@ patch -R -p1 < %PATCH1076
 patch -R -p1 < %PATCH1054
 %endif
 
+%if %{with system_abseil} && %{without abseil_2023}
+patch -R -p1 < %SOURCE440
+%endif
+
 %if %{with ffmpeg_5}
 patch -R -p1 < %PATCH2012
 %else
@@ -752,9 +731,6 @@ patch -R -p1 < %SOURCE400
 
 
 
-%if %{without system_vma}
-patch -R -p1 < %PATCH2039
-%endif
 
 %if %{without harfbuzz_5}
 patch -R -p1 < %SOURCE415
@@ -769,7 +745,7 @@ patch -R -p1 < %SOURCE418
 # This one depends on an ffmpeg nightly, reverting unconditionally.
 patch -R -p1 < %SOURCE401
 
-%if %{without system_abseil} || (%{with system_abseil} || %{without re2_11})
+%if %{without system_abseil} || (%{with system_abseil} && %{without re2_11})
 patch -R -p1 < %SOURCE430
 %endif
 
@@ -782,9 +758,6 @@ ln -svfT %{_datadir}/wayland third_party/wayland/src/protocol
 ln -svfT %{_datadir}/wayland-protocols third_party/wayland-protocols/src
 #ln -svfT %{_datadir}/wayland-eglstream third_party/wayland-protocols/mesa/wayland-drm
 ln -svfT %{_datadir}/plasma-wayland-protocols third_party/wayland-protocols/kde/src/protocols
-
-# Shim generators for replace_gn_files.py
-cp -lv %{_sourcedir}/*.gn build/linux/unbundle/
 
 # Fix the path to nodejs binary
 mkdir -p third_party/node/linux/node-linux-x64/bin
@@ -880,9 +853,6 @@ export CFLAGS="$(echo ${CFLAGS} | sed -e 's/-g /-g1 /g' -e 's/-g$/-g1/g')"
 #and relies on the linker eliminating unused sections.
 #Re-add these parameters from build/config/compiler/BUILD.gn.
 export LDFLAGS="%{?build_ldflags} -Wl,-O2 -Wl,--gc-sections "
-#if %{without lld} && %{without gold}
-#export LDFLAGS="$LDFLAGS -Wl,--gc-keep-exported"
-#endif
 
 
 %if %{with clang}
@@ -1186,6 +1156,7 @@ myconf_gn+=" enable_ppapi=false"
 
 #do not build webextensions support
 myconf_gn+=' enable_electron_extensions=false'
+myconf_gn+=' enable_extensions_legacy_ipc=false'
 
 # The option below get overriden by whatever is in CFLAGS/CXXFLAGS, so they affect only C++ code.
 # symbol_level=2 is full debug
@@ -1248,6 +1219,7 @@ myconf_gn+=' enable_chrome_notifications=false'
 myconf_gn+=' enable_message_center=false'
 myconf_gn+=' enable_system_notifications=false'
 myconf_gn+=' enable_supervised_users=false'
+myconf_gn+=' enable_compose=false'
 
 
 
@@ -1259,12 +1231,8 @@ myconf_gn+=' enable_rust=false'
 #FIXME: enable this and add shims to build with system zstd when it's enabled
 myconf_gn+=' disable_zstd_filter=true'
 
-myconf_gn+=' chrome_root_store_supported=false'
-myconf_gn+=' chrome_root_store_optional=false'
 myconf_gn+=' chrome_root_store_policy_supported=false'
-myconf_gn+=' trial_comparison_cert_verifier_supported=false'
 myconf_gn+=' use_kerberos=false'
-myconf_gt+=' is_ct_supported=false'
 
 myconf_gn+=' disable_histogram_support=true'
 
@@ -1401,11 +1369,11 @@ myconf_gn+=" ffmpeg_branding=\"Chrome\""
 
 # GN does not support passing cflags:
 #  https://bugs.chromium.org/p/chromium/issues/detail?id=642016
-gn gen out/Release --args="import(\"//electron/build/args/release.gn\") ${myconf_gn}"
+gn gen out/Release --testonly=false --args="import(\"//electron/build/args/release.gn\") ${myconf_gn}"
 
 
 # dump the linker command line (if any) in case of failure
-ninja -v %{?_smp_mflags} -C out/Release chromium_licenses copy_headers version electron || (cat out/Release/*.rsp | sed 's/ /\n/g' && false)
+ninja -v %{?_smp_mflags} -C out/Release chromium_licenses copy_node_headers version electron || (cat out/Release/*.rsp | sed 's/ /\n/g' && false)
 
 
 
@@ -1489,6 +1457,9 @@ ln -srv third_party -t out/Release
 %doc electron/docs
 
 %changelog
+* Mon Mar 04 2024 Sérgio Basto <sergio@serjux.com> - 28.2.5-1
+- 28.2.5
+
 * Fri Mar 01 2024 Sérgio Basto <sergio@serjux.com> - 27.3.3-2
 - And bundle minizip
 - resolve run_createrepo problem on F40+
