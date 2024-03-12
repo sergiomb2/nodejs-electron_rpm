@@ -17,10 +17,10 @@
 #
 
 
-%undefine _package_note_file
+#%%undefine _package_note_file
 # https://fedoraproject.org/wiki/Changes/SetBuildFlagsBuildCheck
 %undefine _auto_set_build_flags
-%global debug_package %{nil}
+#%%global debug_package %%{nil}
 
 %define mod_name electron
 # https://github.com/nodejs/node/blob/main/doc/abi_version_registry.json
@@ -69,7 +69,7 @@ BuildArch:      i686
 
 %bcond_with gold
 
-%endif #with clang
+%endif
 
 %bcond_with lld
 #Mold succeeds on ix86 but seems to produce corrupt binaries (no build-id)
@@ -218,8 +218,8 @@ BuildArch:      i686
 
 
 Name:           nodejs-electron
-Version:        28.2.5
-Release:        1%{?dist}
+Version:        28.2.6
+Release:        2%{?dist}
 Summary:        Build cross platform desktop apps with JavaScript, HTML, and CSS
 License:        AFL-2.0 AND Apache-2.0 AND blessing AND BSD-2-Clause AND BSD-3-Clause AND BSD-Protection AND BSD-Source-Code AND bzip2-1.0.6 AND IJG AND ISC AND LGPL-2.0-or-later AND LGPL-2.1-or-later AND MIT AND MIT-CMU AND MIT-open-group AND (MPL-1.1 OR GPL-2.0-or-later OR LGPL-2.1-or-later) AND MPL-2.0 AND OpenSSL AND SGI-B-2.0 AND SUSE-Public-Domain AND X11 %{!?with_system_minizip: AND Zlib}
 Group:          Development/Languages/NodeJS
@@ -272,6 +272,7 @@ Patch78:        rdynamic.patch
 Patch79:        v8-hide-private-symbols.patch
 Patch80:        icon.patch
 Patch81:        disable-tests.patch
+Patch82:        node-compiler.patch
 
 # PATCHES to use system libs
 Patch1000:      do-not-build-libvulkan.so.patch
@@ -648,8 +649,8 @@ BuildRequires:  pkgconfig(vpx) >= 1.13~
 BuildRequires:  gcc >= 12
 BuildRequires:  gcc-c++ >= 12
 %else
-BuildRequires:  gcc12-PIE
-BuildRequires:  gcc12-c++
+BuildRequires:  gcc13-PIE
+BuildRequires:  gcc13-c++
 %endif
 %endif
 %if %{with pipewire}
@@ -871,8 +872,8 @@ export LDFLAGS="${LDFLAGS} -Wl,--no-map-whole-files -Wl,--no-keep-memory -Wl,--n
 %else
 export LDFLAGS="${LDFLAGS} -Wl,--no-keep-memory"
 %endif
-%endif #without lld
-%endif #ifarch ix86 arm
+%endif
+%endif
 
 
 %if 0%{?suse_version} >= 1550 || 0%{?sle_version} >= 150700 || 0%{?fedora}
@@ -882,11 +883,11 @@ export AR=gcc-ar
 export NM=gcc-nm
 export RANLIB=gcc-ranlib
 %else
-export CC=gcc-12
-export CXX=g++-12
-export AR=gcc-ar-12
-export NM=gcc-nm-12
-export RANLIB=gcc-ranlib-12
+export CC=gcc-13
+export CXX=g++-13
+export AR=gcc-ar-13
+export NM=gcc-nm-13
+export RANLIB=gcc-ranlib-13
 %endif
 
 # endif with clang
@@ -909,7 +910,7 @@ export LDFLAGS="${LDFLAGS} -Wl,--as-needed -fuse-ld=mold"
 %if %{with lto} && %{without clang}
 
 %ifarch aarch64
-export LDFLAGS="$LDFLAGS -flto=1 --param lto-max-streaming-parallelism=1 -Wl,--no-keep-memory -Wl,--reduce-memory-overheads"
+export LDFLAGS="$LDFLAGS -flto=auto --param lto-max-streaming-parallelism=1 -Wl,--no-keep-memory -Wl,--reduce-memory-overheads"
 %else
 # x64 is fine with the the default settings (the machines have 30GB+ ram)
 export LDFLAGS="$LDFLAGS -flto=auto"
@@ -1097,7 +1098,7 @@ myconf_gn+=" arm_use_neon=true"
 myconf_gn+=" arm_use_neon=false"
 %endif
 
-%endif #ifarch arm
+%endif
 
 
 
@@ -1165,7 +1166,7 @@ myconf_gn+=' enable_extensions_legacy_ipc=false'
 # blink (HTML engine) and v8 (js engine) are template-heavy, trying to compile them with full debug leads to linker errors
 %ifnarch %ix86 %arm aarch64
 %if %{without lto}
-myconf_gn+=" symbol_level=1"
+myconf_gn+=" symbol_level=2"
 %else
 myconf_gn+=" symbol_level=1"
 %endif
@@ -1457,6 +1458,9 @@ ln -srv third_party -t out/Release
 %doc electron/docs
 
 %changelog
+* Sun Mar 10 2024 Sérgio Basto <sergio@serjux.com> - 28.2.6-1
+- 28.2.6
+
 * Mon Mar 04 2024 Sérgio Basto <sergio@serjux.com> - 28.2.5-1
 - 28.2.5
 
