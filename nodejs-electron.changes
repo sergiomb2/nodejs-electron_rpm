@@ -1,4 +1,40 @@
 -------------------------------------------------------------------
+Wed Mar 20 20:08:27 UTC 2024 - Bruno Pitrus <brunopitrus@hotmail.com>
+
+- New upstream release 28.2.8
+  * no user-visible changes
+- Leap 15.6: link libvulkan.so instead of dlopening it
+
+-------------------------------------------------------------------
+Sun Mar 17 16:49:00 UTC 2024 - Bruno Pitrus <brunopitrus@hotmail.com>
+
+- aarch64, riscv64: fix build with LLVM 18
+  * swiftshader-llvm18-LLVMReactor-getInt8PtrTy.patch gh#llvm/llvm-project#71029
+  * swiftshader-llvm18-LLVMJIT-Host.patch             gh#llvm/llvm-project#74261
+  * swiftshader-llvm18-LLVMJIT-CodeGenOptLevel.patch  gh#llvm/llvm-project#66295
+
+-------------------------------------------------------------------
+Wed Mar 13 17:00:44 UTC 2024 - Bruno Pitrus <brunopitrus@hotmail.com>
+
+- New upstream release 28.2.7
+  * Fix out of memory access in V8 (CVE-2024-2173 bsc#1221105)
+  * Fixed chrome://process-internals failing to load
+
+-------------------------------------------------------------------
+Tue Mar 12 20:06:22 UTC 2024 - Bruno Pitrus <brunopitrus@hotmail.com>
+
+- Correct bogus ASCII unit separator in licence field (bsc#1221251 gh#rpm-software-management/rpm#1644)
+
+-------------------------------------------------------------------
+Fri Mar  8 05:33:05 UTC 2024 - Bruno Pitrus <brunopitrus@hotmail.com>
+
+- New upstream release 28.2.6
+  * Fixed a crash that can result from some kinds of dynamic imports.
+  * Fixed saving traces from devtools performance panel.
+- Do not suppress compiler warnings in third_party/electron_node (bsc#1220571 rh#2142177)
+  * add node-compiler.patch
+
+-------------------------------------------------------------------
 Thu Feb 29 20:47:40 UTC 2024 - Bruno Pitrus <brunopitrus@hotmail.com>
 
 - New upstream release 28.2.5

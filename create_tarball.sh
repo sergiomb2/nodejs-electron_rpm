@@ -230,7 +230,7 @@ keeplibs=(
     third_party/libaom/source/libaom/third_party/vector
     third_party/libaom/source/libaom/third_party/x86inc
     third_party/libavif #leap too old
-    #third_party/libgav1 #Usage of private headers (ObuFrameHeader from utils/types.h) in VAAPI code only
+    third_party/libgav1 #Usage of private headers (ObuFrameHeader from utils/types.h) in VAAPI code only
     third_party/libphonenumber #Depends on protobuf which cannot be unbundled
     third_party/libsrtp #Needs to be built against boringssl, not openssl
     third_party/libsync #not yet in any distro
