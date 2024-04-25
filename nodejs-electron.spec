@@ -24,7 +24,7 @@
 
 %define mod_name electron
 # https://github.com/nodejs/node/blob/main/doc/abi_version_registry.json
-%define abi_version 119
+%define abi_version 121
 
 # Do not provide libEGL.so, etc…
 %define __provides_exclude ^lib.*\\.so.*$
@@ -56,7 +56,25 @@ BuildArch:      i686
 #the QT ui is currently borderline unusable (too small fonts in menu and wrong colors)
 %bcond_with qt
 
+
+
+
+%ifarch aarch64 riscv64
+#Video acceleration API to support. Useful for e.g. signal messenger.
+#One cannot enable both, unfortunately.
+#Apparently more arm hardware supports v4l2 than vaapi,
+#but that code does not build on armv{6,7}hl due to too high cpu requirements.
+#bcond_without v4l2
+#bcond_with vaapi
+%else
+#bcond_with v4l2
+#bcond_without vaapi
+%endif
+
+#DISABLING THIS — cannot use video acceleration with system aom/vpx
+%bcond_with v4l2
 %bcond_with vaapi
+
 
 
 %ifnarch %ix86 %arm
@@ -72,11 +90,6 @@ BuildArch:      i686
 %endif
 
 
-%bcond_without system_nghttp2
-%bcond_without system_crc32c
-%bcond_without system_dav1d
-%bcond_without system_highway
-%bcond_without system_nvctrl
 
 %if 0%{?suse_version} || 0%{?fedora} < 40
 %bcond_without system_minizip
@@ -95,11 +108,13 @@ BuildArch:      i686
 %bcond_without system_spirv
 %bcond_without harfbuzz_5
 %bcond_without link_vulkan
+%bcond_without wayland_32
 %else
 %bcond_with system_aom
 %bcond_with system_spirv
 %bcond_with harfbuzz_5
 %bcond_with link_vulkan
+%bcond_with wayland_32
 %endif
 
 
@@ -119,52 +134,47 @@ BuildArch:      i686
 
 %if 0%{?suse_version} >= 1550 || 0%{?sle_version} >= 150700 || 0%{?fedora} >= 39
 %bcond_without bro_11
+%bcond_without ffmpeg_6
 %else
 %bcond_with bro_11
+%bcond_with ffmpeg_6
 %endif
 
 
 
 %if 0%{?fedora}
 %bcond_without system_llhttp
-%bcond_without llhttp_8
 %bcond_without system_histogram
 %bcond_without system_simdutf
 %else
 %bcond_with system_llhttp
-%bcond_with llhttp_8
 %bcond_with system_histogram
 %bcond_with system_simdutf
 %endif
 
 
-%if 0%{?fedora} >= 40
+%if 0%{?fedora} >= 39
 %bcond_without system_vma
 %else
 %bcond_with system_vma
 %endif
 
+
 #requires `imageSequenceTrackPresent` and `enableParsingGainMapMetadata` both of which are only in post-1.0.0 nightlies
 %bcond_with system_avif
 
 # Some chromium code assumes absl::string_view is a typedef for std::string_view. This is not true on GCC7 systems such as Leap.
-%if 0%{?suse_version} >= 1550 || 0%{?sle_version} >= 150700 || 0%{?fedora} >= 37
-%bcond_without system_abseil
-
 %if 0%{?suse_version} >= 1550 || 0%{?sle_version} >= 150700 || 0%{?fedora} >= 39
-%bcond_without abseil_2023
+%bcond_without system_abseil
 %else
-%bcond_with abseil_2023
+%bcond_with system_abseil
 %endif
 
 %if 0%{?suse_version} >= 1550 || 0%{?sle_version} >= 150700
-%bcond_without re2_11
+#re2-11 has abseil as a public dependency. If you use system re2 you must use system abseil.
+%bcond_without system_re2
 %else
-%bcond_with re2_11
-%endif
-
-%else
-%bcond_with system_abseil
+%bcond_with system_re2
 %endif
 
 %if 0%{?suse_version} >= 1550 || 0%{?sle_version} >= 150700 || 0%{?fedora}
@@ -182,6 +192,7 @@ BuildArch:      i686
 %define RPMFUSION_VER 6.0.1-2
 %endif
 
+
 # We always ship the following bundled libraries as part of Electron despite a system version being available in either openSUSE or Fedora:
 # Name         | Path in tarball                   | Reason
 # -------------+-----------------------------------+---------------------------------------
@@ -198,10 +209,10 @@ BuildArch:      i686
 
 
 Name:           nodejs-electron
-Version:        28.2.8
+Version:        29.3.1
 Release:        1%{?dist}
 Summary:        Build cross platform desktop apps with JavaScript, HTML, and CSS
-License:        AFL-2.0 AND Apache-2.0 AND blessing AND BSD-2-Clause AND BSD-3-Clause AND BSD-Protection AND BSD-Source-Code AND bzip2-1.0.6 AND IJG AND ISC AND LGPL-2.0-or-later AND LGPL-2.1-or-later AND MIT AND MIT-CMU AND MIT-open-group AND (MPL-1.1 OR GPL-2.0-or-later OR LGPL-2.1-or-later) AND MPL-2.0 AND OpenSSL AND SGI-B-2.0 AND SUSE-Public-Domain AND X11%{!?with_system_minizip: AND Zlib}
+License:        Apache-2.0 AND blessing AND BSD-2-Clause AND BSD-3-Clause AND BSD-Source-Code AND bzip2-1.0.6 AND ISC AND LGPL-2.0-or-later AND LGPL-2.1-or-later AND MIT AND MIT-CMU AND MIT-open-group AND (MPL-1.1 OR GPL-2.0-or-later OR LGPL-2.1-or-later) AND MPL-2.0 AND OpenSSL AND SGI-B-2.0 AND SUSE-Public-Domain AND X11%{!?with_system_minizip: AND Zlib}
 Group:          Development/Languages/NodeJS
 URL:            https://github.com/electron/electron
 Source0:        %{mod_name}-%{version}.tar.zst
@@ -213,16 +224,15 @@ Source11:       electron.desktop
 # Reverse upstream changes to be able to build against ffmpeg-4
 Source400:      ffmpeg-new-channel-layout.patch
 Source401:      audio_file_reader-ffmpeg-AVFrame-duration.patch
+Source402:      Cr122-ffmpeg-new-channel-layout.patch
 # and against harfbuzz 4
 Source415:      harfbuzz-replace-chromium-scoped-type.patch
 Source416:      harfbuzz-replace-HbScopedPointer.patch
 # and icu 71
 Source417:      v8-icu73-alt_calendar.patch
 Source418:      v8-icu73-simple-case-folding.patch
-# and re2 10
-Source430:      replace-StringPiece-with-string_view.patch
-# and abseil 2022
-Source440:      pending_task_safety_flag-abseil-2022-nullability.patch
+# and wayland 1.31
+Source450:      wayland-proto-31-cursor-shape.patch
 
 
 # PATCHES for openSUSE-specific things
@@ -249,10 +259,16 @@ Patch75:        gcc-asmflags.patch
 Patch76:        disable-devtools-tests.patch
 Patch77:        angle_link_glx.patch
 Patch78:        rdynamic.patch
-Patch79:        v8-hide-private-symbols.patch
 Patch80:        icon.patch
 Patch81:        disable-tests.patch
 Patch82:        node-compiler.patch
+Patch83:        remove-rust.patch
+Patch84:        aarch64-Xclang.patch
+Patch85:        remove-dawn.patch
+Patch86:        aom-vpx-no-thread-wrapper.patch
+Patch87:        remove-openscreen.patch
+Patch88:        remove-password-manager-and-policy.patch
+Patch89:        remove-puffin.patch
 
 # PATCHES to use system libs
 Patch1000:      do-not-build-libvulkan.so.patch
@@ -265,7 +281,6 @@ Patch1045:      angle-system-xxhash.patch
 Patch1047:      cares_public_headers.patch
 Patch1048:      chromium-remove-bundled-roboto-font.patch
 Patch1053:      swiftshader-use-system-llvm.patch
-Patch1054:      thread_annotations-fix-build-with-system-abseil.patch
 Patch1063:      system-libbsd.patch
 Patch1065:      base-system-nspr.patch
 Patch1066:      system-gtest.patch
@@ -280,6 +295,8 @@ Patch1076:      crashpad-use-system-abseil.patch
 Patch1077:      system-wayland.patch
 Patch1078:      system-simdutf.patch
 Patch1079:      system-libm.patch
+Patch1080:      system-yuv.patch
+Patch1081:      chromium-122-abseil-shims.patch
 
 
 # PATCHES to fix interaction with third-party software
@@ -302,18 +319,10 @@ Patch2024:      electron-16-std-vector-non-const.patch
 Patch2029:      electron-16-webpack-fix-openssl-3.patch
 Patch2031:      partition_alloc-no-lto.patch
 Patch2032:      seccomp_bpf-no-lto.patch
-# adjust to llhttp 8 api changes
-%if %{with llhttp_8}
-Patch2033:       node-upgrade-llhttp-to-8.patch
-%else
-Source2033:      node-upgrade-llhttp-to-8.patch
-%endif
 Patch2034:      swiftshader-LLVMJIT-AddressSanitizerPass-dead-code-remove.patch
 Patch2035:      RenderFrameHostImpl-use-after-free.patch
-Patch2037:      abseil-remove-unused-targets.patch
 # https://github.com/electron/electron/pull/40032
 Patch2040:      build-without-extensions.patch
-Patch2041:      chromium-117-blink-BUILD-mnemonic.patch
 %if %{without bro_11}
 Patch2042:      brotli-remove-shared-dictionary.patch
 %else
@@ -326,8 +335,7 @@ Source2047:     bundled-minizip.patch
 %else
 Patch2047:      bundled-minizip.patch
 %endif
-# https://sources.debian.org/patches/chromium/119.0.6045.199-1/fixes/atspi.patch/
-Patch2048:      atspi.patch
+Patch2048:      absl2023-encapsulated_web_transport-StrCat.patch
 
 # PATCHES that should be submitted upstream verbatim or near-verbatim
 Patch3016:      chromium-98-EnumTable-crash.patch
@@ -341,21 +349,36 @@ Patch3033:      chromium-94.0.4606.71-InkDropHost-crash.patch
 Patch3064:      nested-nested-nested-nested-nested-nested-regex-patterns.patch
 Patch3080:      compact_enc_det_generated_tables-Wnarrowing.patch
 Patch3096:      remove-date-reproducible-builds.patch
-Patch3218:      material_color_utilities-tones-missing-round.patch
-Patch3226:      perfetto-numeric_storage-double_t.patch
-Patch3227:      policy_templates-deterministic.patch
-Patch3229:      text_break_iterator-icu74-breakAllLineBreakClassTable-should-be-consistent.patch
-Patch3230:      web_local_frame_client-incomplete-WebBackgroundResourceFetchAssets.patch
-Patch3231:      local_frame-local_frame_client-incomplete-WebBackgroundResourceFetchAssets.patch
-Patch3232:      v8-instance-type-inl-constexpr-used-before-its-definition.patch
+Patch3118:      material_color_utilities-tones-missing-round.patch
+Patch3126:      perfetto-numeric_storage-double_t.patch
+Patch3129:      text_break_iterator-icu74-breakAllLineBreakClassTable-should-be-consistent.patch
+Patch3132:      v8-instance-type-inl-constexpr-used-before-its-definition.patch
+Patch3133:      swiftshader-llvm18-LLVMReactor-getInt8PtrTy.patch
+Patch3134:      swiftshader-llvm18-LLVMJIT-Host.patch
+Patch3135:      swiftshader-llvm18-LLVMJIT-CodeGenOptLevel.patch
+Patch3136:      CVE-2024-30260-undici-clear-proxy-authorization.patch
+Patch3137:      CVE-2024-30261-undici-fetch-integrity.patch
+Patch3138:      distributed_point_functions-aes_128_fixed_key_hash-missing-StrCat.patch
+Patch3139:      chromium-122-avoid-SFINAE-TypeConverter.patch
+Patch3140:      plus_address_types-missing-optional.patch
+Patch3141:      chromium-122-BookmarkNode-missing-operator.patch
+Patch3142:      search_engine_choice_service-missing-optional.patch
+Patch3143:      race_network_request_write_buffer_manager-missing-optional.patch
+Patch3144:      mt21_util-flax-vector-conversions.patch
+Patch3145:      script_promise_resolver-explicit-specialization.patch
+Patch3146:      hit_test_request-missing-optional.patch
+Patch3147:      grid_sizing_tree-Wchanges-meaning.patch
+Patch3148:      resolution_monitor-missing-bitset.patch
+Patch3149:      boringssl-internal-addc-cxx.patch
+Patch3150:      InternalAllocator-too-many-initializers.patch
+Patch3151:      distributed_point_functions-evaluate_prg_hwy-signature.patch
+Patch3152:      fake_ssl_socket_client-Wlto-type-mismatch.patch 
 
 BuildRequires:  brotli
 %if %{with system_cares}
 BuildRequires:  c-ares-devel
 %endif
-%if %{with system_crc32c}
 BuildRequires:  cmake(Crc32c)
-%endif
 BuildRequires:  double-conversion-devel
 BuildRequires:  desktop-file-utils
 %if 0%{?fedora}
@@ -379,15 +402,9 @@ BuildRequires:  libaom-devel >= 3.7~
 %endif
 BuildRequires:  libbsd-devel
 BuildRequires:  libpng-devel
-%if %{with system_nvctrl}
 BuildRequires:  libXNVCtrl-devel
-%endif
 %if %{with system_llhttp}
-%if %{with llhttp_8}
 BuildRequires:  llhttp-devel >= 8
-%else
-BuildRequires:  llhttp-devel < 8
-%endif
 %endif
 %if %{with swiftshader} && %{without subzero}
 BuildRequires:  llvm-devel >= 16
@@ -432,6 +449,7 @@ BuildRequires:  VulkanMemoryAllocator-devel >= 3
 BuildRequires:  wayland-devel >= 1.20
 BuildRequires:  zstd
 %if %{with system_abseil}
+BuildRequires:  pkgconfig(absl_absl_check)
 BuildRequires:  pkgconfig(absl_algorithm_container)
 BuildRequires:  pkgconfig(absl_any_invocable)
 BuildRequires:  pkgconfig(absl_base)
@@ -469,15 +487,11 @@ BuildRequires:  pkgconfig(absl_time)
 BuildRequires:  pkgconfig(absl_type_traits)
 BuildRequires:  pkgconfig(absl_utility)
 BuildRequires:  pkgconfig(absl_variant)
-%if %{with abseil_2023}
 BuildRequires:  pkgconfig(absl_core_headers) >= 20230000
-%endif
 %endif
 BuildRequires:  pkgconfig(alsa)
 BuildRequires:  pkgconfig(cairo) >= 1.6
-%if %{with system_dav1d}
 BuildRequires:  pkgconfig(dav1d) >= 1
-%endif
 BuildRequires:  pkgconfig(dbus-1)
 BuildRequires:  pkgconfig(dri)
 BuildRequires:  pkgconfig(expat)
@@ -501,6 +515,9 @@ BuildRequires:  pkgconfig(icu-i18n) >= 71
 BuildRequires:  pkgconfig(jsoncpp)
 %if 0%{?fedora}
 Recommends: (ffmpeg-libs%{_isa} or libavcodec-freeworld%{_isa})
+%endif
+%if %{with ffmpeg_6}
+BuildRequires:  pkgconfig(libavcodec) >= 60
 %endif
 %if %{with ffmpeg_5}
 BuildRequires:  pkgconfig(libavcodec) >= 59
@@ -533,12 +550,8 @@ BuildRequires:  pkgconfig(libcares)
 BuildRequires:  pkgconfig(libcurl)
 BuildRequires:  pkgconfig(libdrm)
 BuildRequires:  pkgconfig(libevent)
-%if %{with system_highway}
 BuildRequires:  pkgconfig(libhwy) >= 1
-%endif
-%if %{with system_nghttp2}
 BuildRequires:  pkgconfig(libnghttp2)
-%endif
 BuildRequires:  pkgconfig(libnotify)
 BuildRequires:  pkgconfig(libpci)
 BuildRequires:  pkgconfig(libpulse)
@@ -570,12 +583,8 @@ BuildRequires:  pkgconfig(pangocairo)
 BuildRequires:  pkgconfig(Qt5Core)
 BuildRequires:  pkgconfig(Qt5Widgets)
 %endif
-BuildRequires:  pkgconfig(re2)
-%if %{without system_abseil}
-#re2-11 has abseil as a public dependency. The headers collide with the bundled ones, causing linker errors.
-BuildRequires:  cmake(re2) < 11
-%endif
-%if %{with system_abseil} && %{with re2_11}
+%if %{with system_abseil} && %{with system_re2}
+#re2-11 has abseil as a public dependency. If you use system re2 you must use system abseil.
 BuildRequires:  cmake(re2) >= 11
 %endif
 %if %{with system_spirv}
@@ -590,6 +599,9 @@ BuildRequires:  pkgconfig(SPIRV-Tools) >= 2022.2
 BuildRequires:  pkgconfig(vulkan) >= 1.3
 %endif
 BuildRequires:  pkgconfig(wayland-protocols)
+%if %{with wayland_32}
+BuildRequires:  pkgconfig(wayland-protocols) >= 1.32
+%endif
 BuildRequires:  pkgconfig(xkbcommon)
 BuildRequires:  pkgconfig(xshmfence)
 BuildRequires:  pkgconfig(zlib)
@@ -603,8 +615,8 @@ BuildRequires:  libjpeg-turbo-devel
 BuildRequires:  pkgconfig(vpx) >= 1.13~
 %endif
 %if 0%{?suse_version} >= 1550 || 0%{?sle_version} >= 150700 || 0%{?fedora}
-BuildRequires:  gcc >= 12
-BuildRequires:  gcc-c++ >= 12
+BuildRequires:  gcc >= 13
+BuildRequires:  gcc-c++ >= 13
 %else
 BuildRequires:  gcc13-PIE
 BuildRequires:  gcc13-c++
@@ -659,20 +671,18 @@ Development documentation for the Electron runtime.
 # Use stable path to source to make use of ccache
 %autosetup -n src -p1
 
+
+
+
 # Sanity check if macro corresponds to the actual ABI
 test $(grep ^node_module_version electron/build/args/all.gn | sed 's/.* = //') = %abi_version
 
 %if %{without system_abseil}
-patch -R -p1 < %PATCH1054
 patch -R -p1 < %PATCH1076
 %endif
 
-%if %{with system_abseil} && %{with abseil_2023}
-patch -R -p1 < %PATCH1054
-%endif
-
-%if %{with system_abseil} && %{without abseil_2023}
-patch -R -p1 < %SOURCE440
+%if %{without ffmpeg_6}
+patch -R -p1 < %SOURCE402
 %endif
 
 %if %{with ffmpeg_5}
@@ -680,7 +690,6 @@ patch -R -p1 < %PATCH2012
 %else
 patch -R -p1 < %SOURCE400
 %endif
-
 
 
 
@@ -694,12 +703,13 @@ patch -R -p1 < %SOURCE417
 patch -R -p1 < %SOURCE418
 %endif
 
+%if %{without wayland_32}
+patch -R -p1 < %SOURCE450
+%endif
+
+
 # This one depends on an ffmpeg nightly, reverting unconditionally.
 patch -R -p1 < %SOURCE401
-
-%if %{without system_abseil} || (%{with system_abseil} && %{without re2_11})
-patch -R -p1 < %SOURCE430
-%endif
 
 # Link system wayland-protocols-devel into where chrome expects them
 mkdir -p third_party/wayland/src
@@ -832,6 +842,11 @@ export RANLIB=gcc-ranlib-13
 # https://pagure.io/fedora-infra/ansible/blob/main/f/roles/copr/backend/files/provision/provision_builder_tasks.yml#_176-186
 # ulimit -n 4096
 
+%ifarch aarch64
+#These settings make it use much more memory leading to OOM during linking
+unset MALLOC_CHECK_
+unset MALLOC_PERTURB_
+%endif
 
 %if %{with lto}
 %ifarch aarch64
@@ -844,6 +859,8 @@ export LDFLAGS="$LDFLAGS -flto=auto"
 
 gn_system_libraries=(
     brotli
+    crc32c
+    dav1d
     double-conversion
     ffmpeg
     flac
@@ -851,6 +868,7 @@ gn_system_libraries=(
     fontconfig
     freetype
     harfbuzz-ng
+    highway
     icu
     jsoncpp
     libdrm
@@ -860,10 +878,10 @@ gn_system_libraries=(
     libsecret
     libusb
     libwebp
+    libXNVCtrl
     libxml
     libxslt
     opus
-    re2
     snappy
     woff2
     zlib
@@ -875,6 +893,7 @@ gn_system_libraries+=(
    absl_algorithm
    absl_base
    absl_cleanup
+   absl_crc
    absl_container
    absl_debugging
    absl_flags
@@ -906,38 +925,25 @@ find third_party/libavif -type f ! -name "*.gn" -a ! -name "*.gni" -delete
 gn_system_libraries+=( libavif )
 %endif
 
-%if %{with system_crc32c}
-find third_party/crc32c -type f ! -name "*.gn" -a ! -name "*.gni" -delete
-gn_system_libraries+=( crc32c )
-%endif
 
 
-
-%if %{with system_dav1d}
-find third_party/dav1d -type f ! -name "*.gn" -a ! -name "*.gni" -delete
-gn_system_libraries+=( dav1d )
-%endif
-
-%if %{with system_highway}
-find third_party/highway -type f ! -name "*.gn" -a ! -name "*.gni" -delete
-gn_system_libraries+=( highway )
-%endif
 
 %if %{with system_minizip}
 find third_party/zlib/contrib -type f ! -name "*.gn" -a ! -name "*.gni" -delete
 %endif
 
 
-%if %{with system_nvctrl}
-find third_party/angle/src/third_party/libXNVCtrl/ -type f ! -name "*.gn" -a ! -name "*.gni" -delete
-gn_system_libraries+=( libXNVCtrl )
+%if %{with system_re2}
+find third_party/re2 -type f ! -name "*.gn" -a ! -name "*.gni" -delete
+gn_system_libraries+=( re2 )
 %endif
 
+
 %if %{with system_spirv}
-rm -rf third_party/swiftshader/third_party/SPIRV-Headers/include
+find  third_party/swiftshader/third_party/SPIRV-Headers/ -type f ! -name "*.gn" -a ! -name "*.gni"  -delete
 find  third_party/swiftshader/third_party/SPIRV-Tools/ -type f ! -name "*.gn" -a ! -name "*.gni"  -delete
 
-rm -rf third_party/vulkan-deps/spirv-headers/src/include
+find third_party/vulkan-deps/spirv-headers/ -type f ! -name "*.gn" -a ! -name "*.gni"  -delete
 find third_party/vulkan-deps/spirv-tools/ -type f ! -name "*.gn" -a ! -name "*.gni"  -delete
 
 gn_system_libraries+=(
@@ -969,10 +975,6 @@ build/linux/unbundle/replace_gn_files.py --system-libraries ${gn_system_librarie
 
 %if %{with link_vulkan}
 find third_party/angle/src/third_party/volk -type f ! -name "*.gn" -a ! -name "*.gni"  -delete
-%endif
-
-%if %{with system_nghttp2}
-find third_party/electron_node/deps/nghttp2 -type f ! -name "*.gn" -a ! -name "*.gni" -a ! -name "*.gyp" -a ! -name "*.gypi" -delete
 %endif
 
 %if %{with system_llhttp}
@@ -1072,6 +1074,7 @@ myconf_gn+=" enable_print_preview=false"
 myconf_gn+=" enable_printing=false"
 myconf_gn+=" enable_basic_printing=false"
 myconf_gn+=' use_cups=false'
+myconf_gn+=' enable_print_content_analysis=false'
 #we don't build PDF support, so disabling the below:
 #myconf_gn+=" use_system_lcms2=true"
 #myconf_gn+=" use_system_libopenjpeg2=true"
@@ -1080,6 +1083,8 @@ myconf_gn+=' use_cups=false'
 #do not build chrome pepper plugins support
 myconf_gn+=" enable_plugins=false"
 myconf_gn+=" enable_ppapi=false"
+#it is set by default to enable_ppapi but is required by electron_api_web_frame.cc
+myconf_gn+=' content_enable_legacy_ipc=true'
 
 #do not build webextensions support
 myconf_gn+=' enable_electron_extensions=false'
@@ -1105,11 +1110,14 @@ myconf_gn+=" symbol_level=1"
 myconf_gn+=" blink_symbol_level=0"
 myconf_gn+=" v8_symbol_level=0"
 %endif
-%ifarch aarch64 #“No space left on device” with symbol level 2
-myconf_gn+=" symbol_level=1"
-myconf_gn+=" blink_symbol_level=1"
-myconf_gn+=" v8_symbol_level=1"
+%ifarch aarch64
+# linker OOM, sorry.
+# we still seem to get some debug generated during linking when LTO is enabled
+myconf_gn+=' symbol_level=0'
+myconf_gn+=' blink_symbol_level=0'
+myconf_gn+=' v8_symbol_level=0'
 %endif
+
 
 # do not build some chrome features not used by electron
 # (some of these only go to buildflag_headers and are dead code rn, but disabling them preemptively as long as they're visible)
@@ -1147,18 +1155,24 @@ myconf_gn+=' enable_message_center=false'
 myconf_gn+=' enable_system_notifications=false'
 myconf_gn+=' enable_supervised_users=false'
 myconf_gn+=' enable_compose=false'
-
+myconf_gn+=' enterprise_cloud_content_analysis=false'
+myconf_gn+=' enterprise_local_content_analysis=false'
+myconf_gn+=' enterprise_data_controls=false'
+myconf_gn+=' enterprise_client_certificates=false'
+myconf_gn+=' enterprise_watermark=false'
+myconf_gn+=' enterprise_content_analysis=false'
 
 
 #FIXME: possibly enable this when skia gets built with rust code by default.
 #Need to patch in optflags and possibly FFI LTO hacks (see signal-desktop package for how it's done)
 myconf_gn+=' enable_rust=false'
+myconf_gn+=' enable_chromium_prelude=false'
 
 #See net/base/features.cc. It's not enabled yet.
 #FIXME: enable this and add shims to build with system zstd when it's enabled
 myconf_gn+=' disable_zstd_filter=true'
 
-myconf_gn+=' chrome_root_store_policy_supported=false'
+myconf_gn+=' chrome_certificate_policies_supported=false'
 myconf_gn+=' use_kerberos=false'
 
 myconf_gn+=' disable_histogram_support=true'
@@ -1173,7 +1187,6 @@ myconf_gn+=" enable_service_discovery=false"
 #disable some debug/tracing hooks, they increase size and we do not build chrome://tracing anyway (see disable-catapult.patch)
 myconf_gn+=" enable_trace_logging=false"
 myconf_gn+=" optional_trace_events_enabled=false"
-myconf_gn+=" use_runtime_vlog=false"
 myconf_gn+=" rtc_disable_logging=true"
 myconf_gn+=" rtc_disable_metrics=true"
 myconf_gn+=" rtc_disable_trace_events=true"
@@ -1184,6 +1197,7 @@ myconf_gn+=' enable_perfetto_zlib=false'
 
 
 
+myconf_gn+=' dawn_complete_static_libs=true'
 myconf_gn+=" enable_library_cdms=false"
 myconf_gn+=" use_pulseaudio=true link_pulseaudio=true"
 myconf_gn+=" is_component_build=false"
@@ -1198,13 +1212,15 @@ myconf_gn+=" use_unofficial_version_number=false"
 myconf_gn+=" use_lld=false"
 
 %if %{with vaapi}
-myconf_gn+=' use_vaapi=true'
-myconf_gn+=' use_vaapi_x11=true'
-myconf_gn+=' use_libgav1_parser=true'
+myconf_gn+=' use_vaapi=true use_vaapi_image_codecs=true'
 %else
-myconf_gn+=' use_vaapi=false'
-myconf_gn+=' use_vaapi_x11=false'
-myconf_gn+=' use_libgav1_parser=false'
+myconf_gn+=' use_vaapi=false use_vaapi_image_codecs=false'
+%endif
+
+%if %{with v4l2}
+myconf_gn+=' use_v4l2_codec=true'
+%else
+myconf_gn+=' use_v4l2_codec=false'
 %endif
 
 myconf_gn+=" treat_warnings_as_errors=false"
@@ -1226,9 +1242,7 @@ myconf_gn+=" use_system_libpng=true"
 myconf_gn+=" use_system_harfbuzz=true"
 myconf_gn+=" use_system_freetype=true"
 myconf_gn+=" use_system_cares=true"
-%if %{with system_nghttp2}
 myconf_gn+=" use_system_nghttp2=true"
-%endif
 %if %{with system_llhttp}
 myconf_gn+=" use_system_llhttp=true"
 %endif
@@ -1246,21 +1260,6 @@ myconf_gn+=" gcc_lto=true"
 # endif with lto
 %endif
 
-%ifarch %arm
-# Bundled libaom is broken on ARMv7
-%if %{without system_aom}
-# [74796s] FAILED: v8_context_snapshot_generator
-# [74796s] python3 "../../build/toolchain/gcc_link_wrapper.py" --output="./v8_context_snapshot_generator" -- g++ -Wl,--build-id=sha1 -fPIC -Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now -rdynamic -Wl,-z,defs -Wl,--as-needed -pie -Wl,--disable-new-dtags -Wl,-rpath=\$ORIGIN  -Wl,--as-needed -fuse-ld=lld -o "./v8_context_snapshot_generator" -Wl,--start-group @"./v8_context_snapshot_generator.rsp"  -Wl,--end-group  -latomic -ldl -lpthread -lrt -lgmodule-2.0 -lglib-2.0 -lgobject-2.0 -lgthread-2.0 -ljsoncpp -labsl_base -labsl_raw_logging_internal -labsl_log_severity -labsl_spinlock_wait -labsl_cord -labsl_cordz_info -labsl_cord_internal -labsl_cordz_functions -labsl_exponential_biased -labsl_cordz_handle -labsl_synchronization -labsl_graphcycles_internal -labsl_stacktrace -labsl_symbolize -labsl_debugging_internal -labsl_demangle_internal -labsl_malloc_internal -labsl_time -labsl_civil_time -labsl_time_zone -labsl_bad_optional_access -labsl_strings -labsl_strings_internal -labsl_int128 -labsl_throw_delegate -labsl_hash -labsl_city -labsl_bad_variant_access -labsl_low_level_hash -labsl_raw_hash_set -labsl_hashtablez_sampler -labsl_failure_signal_handler -labsl_examine_stack -labsl_random_distributions -labsl_random_seed_sequences -labsl_random_internal_pool_urbg -labsl_random_internal_randen -labsl_random_internal_randen_hwaes -labsl_random_internal_randen_hwaes_impl -labsl_random_internal_randen_slow -labsl_random_internal_platform -labsl_random_internal_seed_material -labsl_random_seed_gen_exception -labsl_status -labsl_str_format_internal -labsl_strerror -labsl_statusor -licui18n -licuuc -licudata -lsmime3 -lnss3 -lnssutil3 -lplds4 -lplc4 -lnspr4 -ldouble-conversion -levent -lz -ljpeg -lpng16 -lxml2 -lxslt -lresolv -lgio-2.0 -lbrotlidec -lwebpdemux -lwebpmux -lwebp -lfreetype -lexpat -lfontconfig -lharfbuzz-subset -lharfbuzz -lyuv -lopus -lvpx -lm -ldav1d -lX11 -lXcomposite -lXdamage -lXext -lXfixes -lXrender -lXrandr -lXtst -lpipewire-0.3 -lgbm -lEGL -ldrm -lcrc32c -lbsd -lxcb -lxkbcommon -lwayland-client -ldbus-1 -lre2 -lpangocairo-1.0 -lpango-1.0 -lcairo -latk-1.0 -latk-bridge-2.0 -lasound -lpulse -lavcodec -lavformat -lavutil -lXi -lpci -lxxhash -lXNVCtrl -lsnappy -lavif -ljxl -lwoff2dec -latspi
-# [74796s] ld.lld: error: undefined symbol: aom_arm_cpu_caps
-# [74796s] >>> referenced by av1_rtcd.h:1079 (../../third_party/libaom/source/config/linux/arm/config/av1_rtcd.h:1079)
-# [74796s] >>>               libaom/av1_rtcd.o:(setup_rtcd_internal) in archive obj/third_party/libaom/libaom.a
-# [74796s] >>> referenced by aom_dsp_rtcd.h:3560 (../../third_party/libaom/source/config/linux/arm/config/aom_dsp_rtcd.h:3560)
-# [74796s] >>>               libaom/aom_dsp_rtcd.o:(setup_rtcd_internal) in archive obj/third_party/libaom/libaom.a
-# [74796s] >>> referenced by aom_scale_rtcd.h:162 (../../third_party/libaom/source/config/linux/arm/config/aom_scale_rtcd.h:162)
-# [74796s] >>>               libaom/aom_scale_rtcd.o:(setup_rtcd_internal) in archive obj/third_party/libaom/libaom.a
-myconf_gn+=" enable_libaom=false"
-%endif
-%endif
 
 %if %{with pipewire}
 myconf_gn+=" rtc_use_pipewire=true rtc_link_pipewire=true"
@@ -1270,8 +1269,10 @@ myconf_gn+=" rtc_use_pipewire=true rtc_link_pipewire=true"
 myconf_gn+=" use_qt=true"
 %endif
 
+
 # Do not build WebGPU support. It is huge and not used by ANY known apps (we would know if it was — it's hidden behind an experimental flag).
 myconf_gn+=" use_dawn=false"
+myconf_gn+=' skia_use_dawn=false'
 
 # The proprietary codecs just force the chromium to say they can use it and
 # offload the actual computation to the ffmpeg, otherwise the chromium
