@@ -209,7 +209,7 @@ BuildArch:      i686
 
 
 Name:           nodejs-electron
-Version:        29.3.1
+Version:        29.4.0
 Release:        1%{?dist}
 Summary:        Build cross platform desktop apps with JavaScript, HTML, and CSS
 License:        Apache-2.0 AND blessing AND BSD-2-Clause AND BSD-3-Clause AND BSD-Source-Code AND bzip2-1.0.6 AND ISC AND LGPL-2.0-or-later AND LGPL-2.1-or-later AND MIT AND MIT-CMU AND MIT-open-group AND (MPL-1.1 OR GPL-2.0-or-later OR LGPL-2.1-or-later) AND MPL-2.0 AND OpenSSL AND SGI-B-2.0 AND SUSE-Public-Domain AND X11%{!?with_system_minizip: AND Zlib}
@@ -235,11 +235,11 @@ Source418:      v8-icu73-simple-case-folding.patch
 Source450:      wayland-proto-31-cursor-shape.patch
 
 
-# PATCHES for openSUSE-specific things
+# PATCHES for openSUSE-specific things (compiler flags, paths, etc.)
 Patch0:         chromium-102-compiler.patch
 Patch1:         fpic.patch
+Patch2:         common.gypi-compiler.patch
 Patch3:         gcc-enable-lto.patch
-Patch6:         chromium-vaapi.patch
 Patch7:         chromium-91-java-only-allowed-in-android-builds.patch
 # Always disable use_thin_lto which is an lld feature
 Patch21:        electron-13-fix-use-thin-lto.patch
@@ -247,28 +247,37 @@ Patch21:        electron-13-fix-use-thin-lto.patch
 Patch25:        electron-16-system-node-headers.patch
 # https://sources.debian.org/patches/chromium/102.0.5005.115-1/debianization/support-i386.patch/
 Patch39:        support-i386.patch
-# from https://sources.debian.org/patches/chromium/103.0.5060.53-1/disable/catapult.patch/
-Patch67:        disable-catapult.patch
 Patch69:        nasm-generate-debuginfo.patch
-Patch70:        disable-fuses.patch
-# https://code.qt.io/cgit/qt/qtwebengine-chromium.git/commit/?h=102-based&id=d617766b236a93749ddbb50b75573dd35238ffc9
-Patch73:        disable-webspeech.patch
 Patch74:        common.gypi-remove-fno-omit-frame-pointer.patch
 Patch75:        gcc-asmflags.patch
-# https://sources.debian.org/patches/chromium/108.0.5359.124-1/disable/tests.patch/
-Patch76:        disable-devtools-tests.patch
 Patch77:        angle_link_glx.patch
 Patch78:        rdynamic.patch
 Patch80:        icon.patch
-Patch81:        disable-tests.patch
 Patch82:        node-compiler.patch
-Patch83:        remove-rust.patch
 Patch84:        aarch64-Xclang.patch
-Patch85:        remove-dawn.patch
-Patch86:        aom-vpx-no-thread-wrapper.patch
-Patch87:        remove-openscreen.patch
-Patch88:        remove-password-manager-and-policy.patch
-Patch89:        remove-puffin.patch
+Patch85:        devtools-frontend-compress_files-oom.patch
+
+
+# PATCHES that remove code we don't want. Most of them can be reused verbatim by other distributors,
+# and some of them probably should be submitted upstream (at least to Electron, not necessarily to Chromium)
+
+# from https://sources.debian.org/patches/chromium/103.0.5060.53-1/disable/catapult.patch/
+Patch567:       disable-catapult.patch
+Patch570:       disable-fuses.patch
+# https://code.qt.io/cgit/qt/qtwebengine-chromium.git/commit/?h=102-based&id=d617766b236a93749ddbb50b75573dd35238ffc9
+Patch573:       disable-webspeech.patch
+# https://sources.debian.org/patches/chromium/108.0.5359.124-1/disable/tests.patch/
+Patch576:       disable-devtools-tests.patch
+Patch581:       disable-tests.patch
+Patch583:       remove-rust.patch
+Patch585:       remove-dawn.patch
+Patch586:       aom-vpx-no-thread-wrapper.patch
+Patch587:       remove-openscreen.patch
+Patch588:       remove-password-manager-and-policy.patch
+Patch589:       remove-puffin.patch
+
+
+
 
 # PATCHES to use system libs
 Patch1000:      do-not-build-libvulkan.so.patch
@@ -372,7 +381,12 @@ Patch3148:      resolution_monitor-missing-bitset.patch
 Patch3149:      boringssl-internal-addc-cxx.patch
 Patch3150:      InternalAllocator-too-many-initializers.patch
 Patch3151:      distributed_point_functions-evaluate_prg_hwy-signature.patch
-Patch3152:      fake_ssl_socket_client-Wlto-type-mismatch.patch 
+Patch3152:      fake_ssl_socket_client-Wlto-type-mismatch.patch
+
+# Patches to re-enable upstream force disabled features.
+# There's no sense in submitting them but they may be reused as-is by other packagers.
+Patch5000:      more-locales.patch
+Patch5006:      chromium-vaapi.patch
 
 BuildRequires:  brotli
 %if %{with system_cares}
@@ -424,6 +438,9 @@ BuildRequires:  ninja-build >= 1.7.2
 BuildRequires:  nodejs-npm
 %else
 BuildRequires:  npm
+%endif
+%if 0%{?suse_version}
+BuildRequires: nodejs-packaging
 %endif
 BuildRequires:  pkgconfig
 BuildRequires:  plasma-wayland-protocols
@@ -582,6 +599,8 @@ BuildRequires:  pkgconfig(pangocairo)
 %if %{with qt}
 BuildRequires:  pkgconfig(Qt5Core)
 BuildRequires:  pkgconfig(Qt5Widgets)
+BuildRequires:  pkgconfig(Qt6Core)
+BuildRequires:  pkgconfig(Qt6Widgets)
 %endif
 %if %{with system_abseil} && %{with system_re2}
 #re2-11 has abseil as a public dependency. If you use system re2 you must use system abseil.
@@ -638,6 +657,16 @@ Requires:       libvulkan.so.1()(64bit)
 %endif
 %endif
 
+%if %{with qt}
+%if 0%{?fedora}
+Requires: (nodejs-electron-qt5%{_isa} if qt5-qtbase-gui%{_isa})
+Requires: (nodejs-electron-qt6%{_isa} if qt6-qtbase-gui%{_isa})
+%else
+Requires: (nodejs-electron-qt5%{_isa} if libQt5Gui5%{_isa})
+Requires: (nodejs-electron-qt6%{_isa} if libQt6Gui6%{_isa})
+%endif
+%endif
+
 Provides:       electron
 Provides:       electron%{_isa}(abi) = %{abi_version}
 
@@ -652,6 +681,11 @@ Summary:        Electron development headers
 Group:          Development/Libraries/C and C++
 Requires:       nodejs-electron%{?_isa} = %{version}
 Requires:       pkgconfig(zlib)
+%if 0%{?suse_version}
+Requires:       npm%{NODEJS_DEFAULT_VER}
+%else
+Requires:       nodejs-npm
+%endif
 
 
 %description devel
@@ -666,6 +700,26 @@ BuildArch:      noarch
 
 %description doc
 Development documentation for the Electron runtime.
+
+%if %{with qt}
+%package qt5
+Summary:  Qt5 widgets for Electron
+Group:    System/Libraries
+Requires: nodejs-electron%{_isa} = %version
+
+%description qt5
+This is the Qt5-based UI backend for nodejs-electron,
+providing better integration with desktop environments such as KDE.
+
+%package qt6
+Summary:  Qt6 widgets for Electron
+Group:    System/Libraries
+Requires: nodejs-electron%{_isa} = %version
+
+%description qt6
+This is the Qt6-based UI backend for nodejs-electron,
+providing better integration with desktop environments such as KDE.
+%endif
 
 %prep
 # Use stable path to source to make use of ccache
@@ -1094,15 +1148,11 @@ myconf_gn+=' enable_extensions_legacy_ipc=false'
 # symbol_level=2 is full debug
 # symbol_level=1 is enough info for stacktraces
 # symbol_level=0 no debuginfo (only function names in private symbols)
-# blink (HTML engine) and v8 (js engine) are template-heavy, trying to compile them with full debug leads to linker errors
+# blink (HTML engine) and v8 (js engine) are template-heavy, trying to compile them with full debug leads to linker errors due to inherent limitations of the DWARF format.
 %ifnarch %ix86 %arm aarch64
-%if %{without lto}
-myconf_gn+=" symbol_level=2"
-%else
-myconf_gn+=" symbol_level=1"
-%endif
-myconf_gn+=" blink_symbol_level=1"
-myconf_gn+=" v8_symbol_level=1"
+myconf_gn+=' symbol_level=2'
+myconf_gn+=' blink_symbol_level=1'
+myconf_gn+=' v8_symbol_level=1'
 %endif
 %ifarch %ix86 %arm
 #Sorry, no debug on 32bit.
@@ -1203,7 +1253,10 @@ myconf_gn+=" use_pulseaudio=true link_pulseaudio=true"
 myconf_gn+=" is_component_build=false"
 myconf_gn+=" use_sysroot=false"
 myconf_gn+=" fatal_linker_warnings=false"
-myconf_gn+=" use_allocator_shim=true"
+
+#disable malloc interposer - bsc#1223366
+myconf_gn+=' use_allocator_shim=false'
+myconf_gn+=' enable_backup_ref_ptr_support=false'
 myconf_gn+=" use_partition_alloc=true"
 
 
@@ -1266,7 +1319,10 @@ myconf_gn+=" rtc_use_pipewire=true rtc_link_pipewire=true"
 %endif
 
 %if %{with qt}
-myconf_gn+=" use_qt=true"
+myconf_gn+=' use_qt=true'
+myconf_gn+=' moc_qt5_path="%{_libdir}/qt5/bin/"'
+myconf_gn+=' use_qt6=true'
+myconf_gn+=' moc_qt6_path="%{_qt6_libexecdir}"'
 %endif
 
 
@@ -1294,7 +1350,6 @@ ninja -v %{?_smp_mflags} -C out/Release chromium_licenses copy_node_headers vers
 install -d -m 0755 %{buildroot}%{_bindir}
 install -d -m 0755 %{buildroot}%{_includedir}/electron
 install -d -m 0755 %{buildroot}%{_libdir}/electron
-install -d -m 0755 %{buildroot}%{_libdir}/electron/resources
 install -d -m 0755 %{buildroot}%{_datadir}/applications
 install -d -m 0755 %{buildroot}%{_datadir}/pixmaps/
 install -d -m 0755 %{buildroot}%{_datadir}/icons/hicolor/symbolic/apps/
@@ -1312,21 +1367,11 @@ install -pvDm644 electron/shell/browser/resources/win/extracted-3.png %{buildroo
 desktop-file-install --dir %{buildroot}%{_datadir}/applications/ %{SOURCE11}
 
 pushd out/Release
-cp -lv *.bin *.pak -t %{buildroot}%{_libdir}/electron/
-install -pm 0644 resources/default_app.asar -t %{buildroot}%{_libdir}/electron/resources/
-
-cp -lrv locales -t %{buildroot}%{_libdir}/electron/
-rm -v %{buildroot}%{_libdir}/electron/locales/*.pak.info
-
-
-install -pm 0755 electron                -t %{buildroot}%{_libdir}/electron/
-install -pm 0755 chrome_crashpad_handler -t %{buildroot}%{_libdir}/electron/ ||true
-install -pm 0755 libEGL.so               -t %{buildroot}%{_libdir}/electron/
-install -pm 0755 libGLESv2.so            -t %{buildroot}%{_libdir}/electron/
-install -pm 0755 libqt5_shim.so          -t %{buildroot}%{_libdir}/electron/ ||true
-install -pm 0755 libvk_swiftshader.so    -t %{buildroot}%{_libdir}/electron/ ||true
-install -pm 0644 vk_swiftshader_icd.json -t %{buildroot}%{_libdir}/electron/ ||true
 install -pm 0644 version                 -t %{buildroot}%{_libdir}/electron/
+
+gn desc . //electron:electron_app runtime_deps | grep -v ^gen/ | sort | uniq | xargs -t cp -l -v --parents -t %{buildroot}%{_libdir}/electron/ --
+
+
 popd
 
 
@@ -1335,10 +1380,83 @@ popd
 
 cp -lrvT out/Release/gen/node_headers/include/node %{buildroot}%{_includedir}/electron
 
+# Electron has a little known feature that make it work like a nodejs binary.
+# We make use of it in the %%electron_rebuild macro which builds all dependencies in node_modules against Electron's headers.
+# Not all scripts work when run under electron,
+# but importantly npm/yarn and GYP do.
+mkdir -pv %{buildroot}%{_libexecdir}/electron-node
+
+
+cat <<EOF > %{buildroot}%{_libexecdir}/electron-node/node
+#!/bin/sh
+ELECTRON_RUN_AS_NODE=1 exec %{_libdir}/electron/electron "\$@"
+EOF
+
+# HACK: This will refer to /usr/bin/npm17 on openSUSE, /usr/bin/npm on Fedora which are Node scripts
+cat <<EOF >%{buildroot}%{_libexecdir}/electron-node/npm
+#!/bin/sh
+exec %{_libexecdir}/electron-node/node %{_bindir}/npm%{NODEJS_DEFAULT_VER} "\$@"
+EOF
+
+cat <<EOF > %{buildroot}%{_libexecdir}/electron-node/npx
+#!/bin/sh
+exec %{_libexecdir}/electron-node/node %{_bindir}/npx%{NODEJS_DEFAULT_VER} "\$@"
+EOF
+
+# On Fedora, /usr/bin/yarn is a node script which means it needs to be wrapped too. On openSUSE, it is a shell script.
+%if 0%{?fedora}
+cat <<EOF > %{buildroot}%{_libexecdir}/electron-node/yarn
+#!/bin/sh
+exec %{_libexecdir}/electron-node/node %{_bindir}/yarn "\$@"
+EOF
+%endif
+chmod -v 0755 %{buildroot}%{_libexecdir}/electron-node/*
+
 # Install electron.macros
 mkdir -p %{buildroot}%{_rpmconfigdir}/macros.d
 cp /dev/stdin %{buildroot}%{_rpmconfigdir}/macros.d/macros.electron <<"EOF"
+# Ensure rebuilds when electron major changes.
 %%electron_req Requires: electron%{_isa}(abi) = %{abi_version}
+
+# Build native modules against Electron. This should be done as the first step in ‰build. You must set CFLAGS/LDFLAGS previously.
+# You can call it multiple times in different directories and pass more parameters to it (seen in vscode)
+%%electron_rebuild PATH="%{_libexecdir}/electron-node:$PATH" npm rebuild --verbose --foreground-scripts --nodedir=%{_includedir}/electron
+
+# Sanity check that native modules load. You must include this in ‰check if the package includes native modules (possibly in addition to actual test suites)
+# These do, in order:
+# 1. Detect underlinking (missing dependencies)
+# 2. Detect accidental linking to libuv which must not be used (Electron exports its own incompatible version)
+# 3. Actually load each module
+
+# This one should be paired with a simple `Requires: nodejs-electron%{_isa}` in requirements.
+%%electron_check_native \
+  find '%%{buildroot}' -type f -name '*.node' -print0 | xargs -0 -t -IXXX sh -c '! ldd -d -r XXX | \\\
+    grep    '\\''^undefined symbol'\\'' | \\\
+    grep -v '\\''^undefined symbol: napi_'\\'' | \\\
+    grep -v '\\''^undefined symbol: uv_'\\'' ' \
+  find '%%{buildroot}' -type f -name '*.node' -print0 | xargs -0 -t -IXXX sh -c '! objdump -p XXX | grep -F libuv.so.1' \
+  find '%%{buildroot}' -type f -name '*.node' -print0 | xargs -0 -t -IXXX env ELECTRON_RUN_AS_NODE=1 %{_libdir}/electron/electron -e 'require("XXX")'
+
+# This one allows use of unstable APIs and should be paired with the `‰electron_req` macro in requirements.
+%%electron_check_native_unstable \
+  find '%%{buildroot}' -type f -name '*.node' -print0 | xargs -0 -t -IXXX sh -c '! ldd -d -r XXX | \\\
+    grep    '\\''^undefined symbol'\\'' | \\\
+    grep -v '\\''^undefined symbol: node_'\\'' | \\\
+    grep -v '\\''^undefined symbol: _ZN12v8_inspector'\\'' | \\\
+    grep -v '\\''^undefined symbol: _ZN2v8'\\'' | \\\
+    grep -v '\\''^undefined symbol: _ZN4node'\\'' | \\\
+    grep -v '\\''^undefined symbol: _ZN5cppgc'\\'' | \\\
+    grep -v '\\''^undefined symbol: _ZN8electron'\\'' | \\\
+    grep -v '\\''^undefined symbol: _ZNK12v8_inspector'\\'' | \\\
+    grep -v '\\''^undefined symbol: _ZNK2v8'\\'' | \\\
+    grep -v '\\''^undefined symbol: _ZNK4node'\\'' | \\\
+    grep -v '\\''^undefined symbol: _ZNK5cppgc'\\'' | \\\
+    grep -v '\\''^undefined symbol: napi_'\\'' | \\\
+    grep -v '\\''^undefined symbol: uv_'\\'' ' \
+  find '%%{buildroot}' -type f -name '*.node' -print0 | xargs -0 -t -IXXX sh -c '! objdump -p XXX | grep -F libuv.so.1' \
+  find '%%{buildroot}' -type f -name '*.node' -print0 | xargs -0 -t -IXXX env ELECTRON_RUN_AS_NODE=1 %{_libdir}/electron/electron -e 'require("XXX")'
+
+
 EOF
 chmod -v 644 %{buildroot}%{_rpmconfigdir}/macros.d/macros.electron
 
@@ -1359,17 +1477,52 @@ ln -srv third_party -t out/Release
 %{_datadir}/icons/hicolor/256x256/apps/electron.png
 %{_datadir}/icons/hicolor/1024x1024
 
-%{_libdir}/electron/
+%dir %{_libdir}/electron/
+%{_libdir}/electron/chrome_100_percent.pak
+%{_libdir}/electron/chrome_200_percent.pak
+%{_libdir}/electron/chrome_crashpad_handler
+%{_libdir}/electron/electron
+%{_libdir}/electron/libEGL.so
+%{_libdir}/electron/libGLESv2.so
+%{_libdir}/electron/libvk_swiftshader.so
+%{_libdir}/electron/resources.pak
+%{_libdir}/electron/snapshot_blob.bin
+%{_libdir}/electron/v8_context_snapshot.bin
+%{_libdir}/electron/version
+%{_libdir}/electron/vk_swiftshader_icd.json
+%dir %{_libdir}/electron/locales
+%{_libdir}/electron/locales/*.pak
+%dir %{_libdir}/electron/resources
+%{_libdir}/electron/resources/default_app.asar
+
+
 
 %files devel
 %{_includedir}/electron
 %{_rpmconfigdir}/macros.d/macros.electron
+%dir %{_libexecdir}/electron-node
+%{_libexecdir}/electron-node/node
+%{_libexecdir}/electron-node/npm
+%{_libexecdir}/electron-node/npx
+%if 0%{?fedora}
+%{_libexecdir}/electron-node/yarn
+%endif
 
 %files doc
 %doc electron/README.md
 %doc electron/docs
 
+%if %{with qt}
+%files qt5
+%{_libdir}/electron/libqt5_shim.so
+%files qt6
+%{_libdir}/electron/libqt6_shim.so
+%endif
+
 %changelog
+* Sun May 19 2024 Sérgio Basto <sergio@serjux.com> - 29.4.0-1
+- Update to 29.4.0
+
 * Tue Mar 12 2024 Sérgio Basto <sergio@serjux.com> - 28.2.6-3
 - with vaapi
 
