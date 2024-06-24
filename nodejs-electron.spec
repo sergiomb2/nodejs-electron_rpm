@@ -53,7 +53,8 @@ BuildArch:      i686
 %bcond_with subzero
 %endif
 
-#the QT ui is currently borderline unusable (too small fonts in menu and wrong colors)
+#Not enabling this yet, as of electron 29 there are minor font rendering issues in menu, and the benefits are dubious
+#(all the widgets use Gtk unconditionally — not sure which of the changed codepaths are used in Electron)
 %bcond_with qt
 
 
@@ -193,6 +194,12 @@ BuildArch:      i686
 %endif
 
 
+%if 0%{?suse_version}
+%{expand:%%global NODEJS_DEFAULT_VER %(echo %{nodejs_version}|sed 's/\..*//')}
+%else
+%global NODEJS_DEFAULT_VER %nil
+%endif
+
 # We always ship the following bundled libraries as part of Electron despite a system version being available in either openSUSE or Fedora:
 # Name         | Path in tarball                   | Reason
 # -------------+-----------------------------------+---------------------------------------
@@ -210,7 +217,7 @@ BuildArch:      i686
 
 Name:           nodejs-electron
 Version:        29.4.0
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        Build cross platform desktop apps with JavaScript, HTML, and CSS
 License:        Apache-2.0 AND blessing AND BSD-2-Clause AND BSD-3-Clause AND BSD-Source-Code AND bzip2-1.0.6 AND ISC AND LGPL-2.0-or-later AND LGPL-2.1-or-later AND MIT AND MIT-CMU AND MIT-open-group AND (MPL-1.1 OR GPL-2.0-or-later OR LGPL-2.1-or-later) AND MPL-2.0 AND OpenSSL AND SGI-B-2.0 AND SUSE-Public-Domain AND X11%{!?with_system_minizip: AND Zlib}
 Group:          Development/Languages/NodeJS
@@ -1520,6 +1527,9 @@ ln -srv third_party -t out/Release
 %endif
 
 %changelog
+* Sun May 26 2024 Sérgio Basto <sergio@serjux.com> - 29.4.0-2
+- add NODEJS_DEFAULT_VER
+
 * Sun May 19 2024 Sérgio Basto <sergio@serjux.com> - 29.4.0-1
 - Update to 29.4.0
 
