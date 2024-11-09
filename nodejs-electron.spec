@@ -24,7 +24,7 @@
 
 %define mod_name electron
 # https://github.com/nodejs/node/blob/main/doc/abi_version_registry.json
-%define abi_version 121
+%define abi_version 125
 
 # Do not provide libEGL.so, etc…
 %define __provides_exclude ^lib.*\\.so.*$
@@ -76,18 +76,36 @@ BuildArch:      i686
 %bcond_with v4l2
 %bcond_with vaapi
 
+%ifarch %arm aarch64 riscv64
+%bcond_with gdbjit
+%else
+%bcond_without gdbjit
+%endif
 
-
-%ifnarch %ix86 %arm
-
+%ifnarch %ix86 %arm aarch64
 %if (0%{?suse_version} >= 1550 || 0%{?sle_version} >= 150700 || 0%{?fedora})
 %bcond_without lto
 %else
 %bcond_with lto
 %endif
+%endif
 
-%else
+%ifarch %ix86 %arm
 %bcond_with lto
+%endif
+
+%ifarch aarch64
+%bcond_with lto
+%endif
+
+%ifarch aarch64
+%if 0%{?suse_version}
+%bcond_without mold
+%else
+%bcond_with mold
+%endif
+%else
+%bcond_with mold
 %endif
 
 
@@ -121,31 +139,28 @@ BuildArch:      i686
 %endif
 
 %if 0%{?suse_version} >= 1550 || 0%{?sle_version} >= 150700 || 0%{?fedora}
-%bcond_without ffmpeg_5
 %bcond_without system_vpx
-%else
-%bcond_with ffmpeg_5
-%bcond_with system_vpx
-%endif
-
-%if 0%{?suse_version} >= 1550 || 0%{?sle_version} >= 150700 || 0%{?fedora} >= 39
 %bcond_without bro_11
 %bcond_without ffmpeg_6
 %else
+%bcond_with system_vpx
 %bcond_with bro_11
 %bcond_with ffmpeg_6
 %endif
 
+%if 0%{?suse_version} >= 1550 || 0%{?sle_version} >= 150700 || 0%{?fedora} >= 40
+%bcond_without gcc14
+%else
+%bcond_with gcc14
+%endif
 
 
 %if 0%{?fedora}
 %bcond_without system_llhttp
 %bcond_without system_histogram
-%bcond_without system_simdutf
 %else
 %bcond_with system_llhttp
 %bcond_with system_histogram
-%bcond_with system_simdutf
 %endif
 
 
@@ -154,6 +169,9 @@ BuildArch:      i686
 %else
 %bcond_with system_vma
 %endif
+
+# requires `run_convert_utf8_to_latin1_with_errors`
+%bcond_with system_simdutf
 
 
 #requires `imageSequenceTrackPresent` and `enableParsingGainMapMetadata` both of which are only in post-1.0.0 nightlies
@@ -211,7 +229,7 @@ BuildArch:      i686
 
 
 Name:           nodejs-electron
-Version:        29.4.2
+Version:        31.7.3
 Release:        1%{?dist}
 Summary:        Build cross platform desktop apps with JavaScript, HTML, and CSS
 License:        Apache-2.0 AND blessing AND BSD-2-Clause AND BSD-3-Clause AND BSD-Source-Code AND bzip2-1.0.6 AND ISC AND LGPL-2.0-or-later AND LGPL-2.1-or-later AND MIT AND MIT-CMU AND MIT-open-group AND (MPL-1.1 OR GPL-2.0-or-later OR LGPL-2.1-or-later) AND MPL-2.0 AND OpenSSL AND SGI-B-2.0 AND SUSE-Public-Domain AND X11%{!?with_system_minizip: AND Zlib}
@@ -227,11 +245,15 @@ Source11:       electron.desktop
 Source400:      ffmpeg-new-channel-layout.patch
 Source401:      audio_file_reader-ffmpeg-AVFrame-duration.patch
 Source402:      Cr122-ffmpeg-new-channel-layout.patch
+Source403:      ffmpeg-7-ffmpeg_video_decoder-reordered_opaque.patch
 # and against harfbuzz 4
 Source415:      harfbuzz-replace-chromium-scoped-type.patch
 Source416:      harfbuzz-replace-HbScopedPointer.patch
 # and wayland 1.31
 Source450:      wayland-proto-31-cursor-shape.patch
+# and abseil 2401
+Source460:      quiche-absl-HexStringToBytes.patch
+
 
 
 # PATCHES for openSUSE-specific things (compiler flags, paths, etc.)
@@ -240,8 +262,6 @@ Patch1:         fpic.patch
 Patch2:         common.gypi-compiler.patch
 Patch3:         gcc-enable-lto.patch
 Patch7:         chromium-91-java-only-allowed-in-android-builds.patch
-# Always disable use_thin_lto which is an lld feature
-Patch21:        electron-13-fix-use-thin-lto.patch
 # Fix common.gypi to include /usr/include/electron
 Patch25:        electron-16-system-node-headers.patch
 # https://sources.debian.org/patches/chromium/102.0.5005.115-1/debianization/support-i386.patch/
@@ -255,6 +275,7 @@ Patch80:        icon.patch
 Patch82:        node-compiler.patch
 Patch84:        aarch64-Xclang.patch
 Patch85:        devtools-frontend-compress_files-oom.patch
+Patch86:        enable_stack_trace_line_numbers-symbol_level.patch
 
 
 # PATCHES that remove code we don't want. Most of them can be reused verbatim by other distributors,
@@ -271,10 +292,11 @@ Patch581:       disable-tests.patch
 Patch583:       remove-rust.patch
 Patch585:       remove-dawn.patch
 Patch586:       aom-vpx-no-thread-wrapper.patch
-Patch587:       remove-openscreen.patch
 Patch588:       remove-password-manager-and-policy.patch
 Patch589:       remove-puffin.patch
 Patch590:       remove-sync.patch
+Patch591:       fix-build-without-safebrowsing.patch
+Patch592:       fix-build-without-supervised-users.patch
 
 
 
@@ -304,12 +326,13 @@ Patch1076:      crashpad-use-system-abseil.patch
 Patch1077:      system-wayland.patch
 Patch1078:      system-simdutf.patch
 Patch1079:      system-libm.patch
-Patch1080:      system-yuv.patch
-Patch1081:      chromium-122-abseil-shims.patch
+Patch1082:      chromium-124-shims.patch
+Patch1083:      Cr126-abseil-shims.patch
+Patch1084:      absl-base-dynamic_annotations.patch
+Patch1085:      webp-no-sharpyuv.patch
 
 
 # PATCHES to fix interaction with third-party software
-Patch2004:      chromium-gcc11.patch
 Patch2010:      chromium-93-ffmpeg-4.4.patch
 
 #Since ffmpeg 5, there is no longer first_dts member in AVFormat. Chromium upstream (and Tumbleweed) patches ffmpeg to add a av_stream_get_first_dts function.
@@ -323,9 +346,6 @@ Patch2012:      chromium-94-ffmpeg-roll.patch
 #     'nomerge' attribute cannot be applied to a declaration
 # See https://reviews.llvm.org/D92800
 Patch2022:      electron-13-fix-base-check-nomerge.patch
-# Fix electron patched code
-Patch2024:      electron-16-std-vector-non-const.patch
-Patch2029:      electron-16-webpack-fix-openssl-3.patch
 Patch2031:      partition_alloc-no-lto.patch
 Patch2032:      seccomp_bpf-no-lto.patch
 Patch2034:      swiftshader-LLVMJIT-AddressSanitizerPass-dead-code-remove.patch
@@ -345,44 +365,53 @@ Source2047:     bundled-minizip.patch
 Patch2047:      bundled-minizip.patch
 %endif
 Patch2048:      absl2023-encapsulated_web_transport-StrCat.patch
+Patch2049:      libaom_av1_encoder-aom37-AV1E_SET_MAX_CONSEC_FRAME_DROP_CBR.patch
+# bsc#1224178 deb#1067886
+Patch2050:      bad-font-gc0000.patch
+Patch2051:      bad-font-gc000.patch
+Patch2052:      bad-font-gc00.patch
+Patch2053:      bad-font-gc0.patch
+Patch2054:      bad-font-gc11.patch
+Patch2055:      bad-font-gc1.patch
+Patch2056:      bad-font-gc2.patch
+Patch2057:      bad-font-gc3.patch
+#Work around gcc14 overly aggressive optimizer. Interestingly applying this patch produces a *different* crash on gcc13 + LTO.
+%if %{with gcc14}
+Patch2058:      v8-strict-aliasing.patch
+%else
+Source2058:     v8-strict-aliasing.patch
+%endif
 
 # PATCHES that should be submitted upstream verbatim or near-verbatim
-Patch3016:      chromium-98-EnumTable-crash.patch
 # Fix blink nodestructor
 Patch3023:      electron-13-blink-gcc-ambiguous-nodestructor.patch
 Patch3027:      electron-16-freetype-visibility-list.patch
 Patch3028:      electron-16-third_party-symbolize-missing-include.patch
 # From https://git.droidware.info/wchen342/ungoogled-chromium-fedora
 Patch3033:      chromium-94.0.4606.71-InkDropHost-crash.patch
-# https://salsa.debian.org/chromium-team/chromium/-/blob/456851fc808b2a5b5c762921699994e957645917/debian/patches/upstream/nested-nested-nested-nested-nested-nested-regex-patterns.patch
-Patch3064:      nested-nested-nested-nested-nested-nested-regex-patterns.patch
 Patch3080:      compact_enc_det_generated_tables-Wnarrowing.patch
 Patch3096:      remove-date-reproducible-builds.patch
-Patch3118:      material_color_utilities-tones-missing-round.patch
-Patch3126:      perfetto-numeric_storage-double_t.patch
-Patch3129:      text_break_iterator-icu74-breakAllLineBreakClassTable-should-be-consistent.patch
-Patch3132:      v8-instance-type-inl-constexpr-used-before-its-definition.patch
 Patch3133:      swiftshader-llvm18-LLVMReactor-getInt8PtrTy.patch
 Patch3134:      swiftshader-llvm18-LLVMJIT-Host.patch
 Patch3135:      swiftshader-llvm18-LLVMJIT-CodeGenOptLevel.patch
-Patch3136:      CVE-2024-30260-undici-clear-proxy-authorization.patch
-Patch3137:      CVE-2024-30261-undici-fetch-integrity.patch
 Patch3138:      distributed_point_functions-aes_128_fixed_key_hash-missing-StrCat.patch
-Patch3139:      chromium-122-avoid-SFINAE-TypeConverter.patch
-Patch3140:      plus_address_types-missing-optional.patch
-Patch3141:      chromium-122-BookmarkNode-missing-operator.patch
-Patch3142:      search_engine_choice_service-missing-optional.patch
-Patch3143:      race_network_request_write_buffer_manager-missing-optional.patch
 Patch3144:      mt21_util-flax-vector-conversions.patch
-Patch3145:      script_promise_resolver-explicit-specialization.patch
-Patch3146:      hit_test_request-missing-optional.patch
-Patch3147:      grid_sizing_tree-Wchanges-meaning.patch
-Patch3148:      resolution_monitor-missing-bitset.patch
 Patch3149:      boringssl-internal-addc-cxx.patch
-Patch3150:      InternalAllocator-too-many-initializers.patch
 Patch3151:      distributed_point_functions-evaluate_prg_hwy-signature.patch
-Patch3152:      fake_ssl_socket_client-Wlto-type-mismatch.patch
-Patch3153:      ElectronDesktopWindowTreeHostLinux-OnWindowTiledStateChanged-crash.patch
+Patch3154:      licenses.py-FileNotFoundError.patch
+Patch3161:      preview_cancel_reason-missing-string.patch
+Patch3163:      DesktopNativeWidgetAura-HandleActivationChanged-crash.patch
+Patch3165:      http_auth_ntlm_mechanism-could-not-convert-to-base-span.patch
+Patch3166:      angle-State-constexpr.patch
+Patch3167:      color_provider-incomplete-ColorProviderInternal.patch
+Patch3168:      run_segmenter-missing-optional.patch
+Patch3169:      page_popup_controller-missing-optional.patch
+Patch3170:      native_css_paint_definition-expected-unqualified-id.patch
+Patch3171:      text_decoder-missing-optional.patch
+Patch3172:      real_time_reporting_bindings-forward-declaration.patch
+Patch3173:      blink-platform-INSIDE_BLINK-Wodr.patch
+Patch3174:      quiche-QuicIntervalDeque-no-match-for-operator-mm.patch
+Patch3175:      ConsumeRadii-linker-error.patch
 
 # Patches to re-enable upstream force disabled features.
 # There's no sense in submitting them but they may be reused as-is by other packagers.
@@ -425,6 +454,9 @@ BuildRequires:  llhttp-devel >= 8
 BuildRequires:  llvm-devel >= 16
 %endif
 #BuildRequires:  memory-constraints
+%if %{with mold}
+BuildRequires: mold
+%endif
 %ifarch %ix86 x86_64 %x86_64
 %if %{without system_aom} || %{without system_vpx}
 BuildRequires:  nasm
@@ -450,10 +482,12 @@ BuildRequires:  python%{PYVER}-jinja2 >= 3.0.2
 BuildRequires:  python3-mako
 BuildRequires:  python%{PYVER}-ply
 BuildRequires:  python%{PYVER}-PyYAML >= 6
-BuildRequires:  python3-setuptools
+%if 0%{?fedora}
+BuildRequires:  (python3-setuptools if python3 >= 3.12)
+%endif
 BuildRequires:  python%{PYVER}-six
 %if %{with system_simdutf}
-BuildRequires:  simdutf-devel >= 3
+BuildRequires:  simdutf-devel >= 3.2.17
 %endif
 BuildRequires:  snappy-devel
 %if 0%{?suse_version}
@@ -518,7 +552,7 @@ BuildRequires:  pkgconfig(freetype2)
 BuildRequires:  pkgconfig(gbm)
 BuildRequires:  pkgconfig(glib-2.0)
 BuildRequires:  pkgconfig(glproto)
-BuildRequires:  pkgconfig(gtest)
+BuildRequires:  pkgconfig(gtest) >= 1.12
 BuildRequires:  pkgconfig(gtk+-3.0)
 BuildRequires:  pkgconfig(harfbuzz) >= 3
 %if %{with harfbuzz_5}
@@ -531,11 +565,8 @@ Recommends: (ffmpeg-libs%{_isa} or libavcodec-freeworld%{_isa})
 %endif
 %if %{with ffmpeg_6}
 BuildRequires:  pkgconfig(libavcodec) >= 60
-%endif
-%if %{with ffmpeg_5}
-BuildRequires:  pkgconfig(libavcodec) >= 59
-BuildRequires:  pkgconfig(libavformat) >= 59
-BuildRequires:  pkgconfig(libavutil) >= 57
+BuildRequires:  pkgconfig(libavformat) >= 60
+BuildRequires:  pkgconfig(libavutil) >= 58
 %if 0%{?fedora}
 #requires av_stream_get_first_dts, see rhbz#2240127
 BuildRequires:  libavformat-free-devel >= %AVFORMAT_VER
@@ -581,6 +612,7 @@ BuildRequires:  pkgconfig(libxxhash)
 # needs I410ToI420
 BuildRequires:  pkgconfig(libyuv) >= 1855
 %endif
+BuildRequires:  pkgconfig(libzstd)
 %if %{with system_minizip}
 %if 0%{?fedora}
 BuildRequires:  minizip-compat-devel
@@ -636,6 +668,9 @@ BuildRequires:  gcc-c++ >= 13
 %else
 BuildRequires:  gcc13-PIE
 BuildRequires:  gcc13-c++
+%endif
+%if %{with gcc14}
+BuildRequires:  gcc-c++ >= 14
 %endif
 %if %{with pipewire}
 BuildRequires:  pkgconfig(libpipewire-0.3)
@@ -732,14 +767,14 @@ test $(grep ^node_module_version electron/build/args/all.gn | sed 's/.* = //') =
 patch -R -p1 < %PATCH1076
 %endif
 
-%if %{without ffmpeg_6}
-patch -R -p1 < %SOURCE402
-%endif
 
-%if %{with ffmpeg_5}
+%if %{with ffmpeg_6}
 patch -R -p1 < %PATCH2012
 %else
+patch -R -p1 < %SOURCE403
+patch -R -p1 < %SOURCE402
 patch -R -p1 < %SOURCE400
+patch -R -p1 < %SOURCE401
 %endif
 
 
@@ -755,8 +790,10 @@ patch -R -p1 < %SOURCE450
 %endif
 
 
-# This one depends on an ffmpeg nightly, reverting unconditionally.
-patch -R -p1 < %SOURCE401
+
+
+# This one depends on an abseil nightly, reverting unconditionally.
+patch -R -p1 < %SOURCE460
 
 # Link system wayland-protocols-devel into where chrome expects them
 mkdir -p third_party/wayland/src
@@ -780,130 +817,7 @@ ln -sf %{_bindir}/eu-strip buildtools/third_party/eu-strip/bin/eu-strip
 sed -i 's/OFFICIAL_BUILD/GOOGLE_CHROME_BUILD/' \
       tools/generate_shim_headers/generate_shim_headers.py
 
-
-%build
-pushd electron/shell/browser/resources/win
-[ $(identify electron.ico | wc -l) = 4 ] #Sanity check
-convert electron.ico -strip extracted.png
-identify extracted-0.png | grep -F 16x16
-identify extracted-1.png | grep -F 32x32
-identify extracted-2.png | grep -F 48x48
-identify extracted-3.png | grep -F 256x256
-popd
-
-
-# GN sets lto on its own and we need just ldflag options, not cflags
-%define _lto_cflags %{nil}
-
-# Make sure python is python3
-install -d -m 0755 python3-path
-%if 0%{?suse_version} >= 1550 || 0%{?sle_version} >= 150700 || 0%{?fedora}
-ln -sf %{_bindir}/python3 "$(pwd)/python3-path/python"
-%else
-ln -sf %{_bindir}/python3.11 "$(pwd)/python3-path/python"
-ln -sf %{_bindir}/python3.11 "$(pwd)/python3-path/python3"
-%endif
-export PATH="$(pwd)/python3-path:${PATH}"
-
-#HACK: Those packages on Leap are available only in python3.6 versions.
-%if 0%{?suse_version}  && 0%{?suse_version} < 1550
-install -d -m 0755 python3-site
-cp -pr %{python3_sitelib}/{json5,mako} -t "$(pwd)/python3-site"
-export PYTHONPATH="$(pwd)/python3-site"
-%endif
-
-#some Fedora ports still try to build with LTO
-ARCH_FLAGS=$(echo "%optflags"|sed 's/-f[^ ]*lto[^ ]*//g' )
-
-#Work around an upstream ODR issue.
-#Remove this once https://bugs.chromium.org/p/chromium/issues/detail?id=1375049 gets fixed.
-ARCH_FLAGS="$ARCH_FLAGS -DIS_SERIAL_ENABLED_PLATFORM"
-
-
-
-
-%if 0%{?fedora}
-# Fix base/allocator/allocator_shim.cc:408:2: error: #error This code cannot be
-# used when exceptions are turned on.
-ARCH_FLAGS="$(echo $ARCH_FLAGS | sed -e 's/ -fexceptions / /g')"
-%endif
-
-
-# for wayland
-export CXXFLAGS="${ARCH_FLAGS} -I/usr/include/wayland -I/usr/include/libxkbcommon"
-export CFLAGS="${CXXFLAGS}"
-
-# Google has a bad coding style, using a macro `NOTREACHED()` that is not properly detected by GCC
-# multiple times throughout the codebase (including generated code). It is not possible to redefine the macro to __builtin_unreachable,
-# as it has an astonishing syntax, behaving like an ostream (in debug builds it is supposed to trap and print an error message)
-export CXXFLAGS="${CXXFLAGS} -Wno-error=return-type"
-# [ 8947s] gen/third_party/blink/renderer/bindings/modules/v8/v8_gpu_sampler_descriptor.h:212:39: error: narrowing conversion of '4294967295' from 'unsigned int' to 'float' [-Wnarrowing]
-# [ 8947s]   212 | float member_lod_max_clamp_{0xffffffff};
-# I have no idea where this code is generated, and it is not something that needs a critical fix.
-# Remove this once upstream issues a proper patch.
-export CXXFLAGS="${CXXFLAGS} -Wno-error=narrowing"
-
-# A bunch of memcpy'ing of JSObject in V8 runs us into “Logfile got too big, killed job.”
-export CXXFLAGS="${CXXFLAGS} -Wno-class-memaccess"
-
-# REDUCE DEBUG for C++ as it gets TOO large due to “heavy hemplate use in Blink”. See symbol_level below and chromium-102-compiler.patch
-export CXXFLAGS="$(echo ${CXXFLAGS} | sed -e 's/-g / /g' -e 's/-g$//g')"
-
-%ifnarch x86_64 %x86_64
-export CFLAGS="$(echo ${CFLAGS} | sed -e 's/-g /-g1 /g' -e 's/-g$/-g1/g')"
-%endif
-
-#The chromium build process passes lots of .o files directly to the linker instead of using static libraries,
-#and relies on the linker eliminating unused sections.
-#Re-add these parameters from build/config/compiler/BUILD.gn.
-export LDFLAGS="%{?build_ldflags} -Wl,-O2 -Wl,--gc-sections "
-
-
-
-%ifarch %ix86 %arm
-#try to reduce memory
-
-export LDFLAGS="${LDFLAGS} -Wl,--no-keep-memory"
-%endif
-
-
-%if 0%{?suse_version} >= 1550 || 0%{?sle_version} >= 150700 || 0%{?fedora}
-export CC=gcc
-export CXX=g++
-export AR=gcc-ar
-export NM=gcc-nm
-export RANLIB=gcc-ranlib
-%else
-export CC=gcc-13
-export CXX=g++-13
-export AR=gcc-ar-13
-export NM=gcc-nm-13
-export RANLIB=gcc-ranlib-13
-%endif
-
-
-
-# do not eat all memory
-# copr already set the max number of files already by default
-# https://pagure.io/fedora-infra/ansible/blob/main/f/roles/copr/backend/files/provision/files/mock/site-defaults.cfg
-# https://pagure.io/fedora-infra/ansible/blob/main/f/roles/copr/backend/files/provision/provision_builder_tasks.yml#_176-186
-# ulimit -n 4096
-
-%ifarch aarch64
-#These settings make it use much more memory leading to OOM during linking
-unset MALLOC_CHECK_
-unset MALLOC_PERTURB_
-%endif
-
-%if %{with lto}
-%ifarch aarch64
-export LDFLAGS="$LDFLAGS -flto=auto --param ggc-min-expand=20 --param ggc-min-heapsize=32768 --param lto-max-streaming-parallelism=1 -Wl,--no-keep-memory -Wl,--reduce-memory-overheads"
-%else
-# x64 is fine with the the default settings (the machines have 30GB+ ram)
-export LDFLAGS="$LDFLAGS -flto=auto"
-%endif
-%endif
-
+# Remove bundled libraries
 gn_system_libraries=(
     brotli
     crc32c
@@ -932,6 +846,7 @@ gn_system_libraries=(
     snappy
     woff2
     zlib
+    zstd
 )
 
 %if %{with system_abseil}
@@ -1035,6 +950,145 @@ find third_party/electron_node/deps/histogram -type f ! -name "*.gn" -a ! -name 
 find third_party/electron_node/deps/simdutf -type f ! -name "*.gn" -a ! -name "*.gni" -a ! -name "*.gyp" -a ! -name "*.gypi" -delete
 %endif
 
+
+%build
+pushd electron/shell/browser/resources/win
+[ $(identify electron.ico | wc -l) = 4 ] #Sanity check
+convert electron.ico -strip extracted.png
+identify extracted-0.png | grep -F 16x16
+identify extracted-1.png | grep -F 32x32
+identify extracted-2.png | grep -F 48x48
+identify extracted-3.png | grep -F 256x256
+popd
+
+
+# GN sets lto on its own and we need just ldflag options, not cflags
+%define _lto_cflags %{nil}
+
+# Make sure python is python3
+install -d -m 0755 python3-path
+%if 0%{?suse_version} >= 1550 || 0%{?sle_version} >= 150700 || 0%{?fedora}
+ln -sf %{_bindir}/python3 "$(pwd)/python3-path/python"
+%else
+ln -sf %{_bindir}/python3.11 "$(pwd)/python3-path/python"
+ln -sf %{_bindir}/python3.11 "$(pwd)/python3-path/python3"
+%endif
+export PATH="$(pwd)/python3-path:${PATH}"
+
+#HACK: Those packages on Leap are available only in python3.6 versions.
+%if 0%{?suse_version}  && 0%{?suse_version} < 1550
+install -d -m 0755 python3-site
+cp -pr %{python3_sitelib}/{json5,mako} -t "$(pwd)/python3-site"
+export PYTHONPATH="$(pwd)/python3-site"
+%endif
+
+#some Fedora ports still try to build with LTO
+ARCH_FLAGS=$(echo "%optflags"|sed 's/-f[^ ]*lto[^ ]*//g' )
+
+#Work around an upstream ODR issue.
+#Remove this once https://bugs.chromium.org/p/chromium/issues/detail?id=1375049 gets fixed.
+ARCH_FLAGS="$ARCH_FLAGS -DIS_SERIAL_ENABLED_PLATFORM"
+
+
+
+
+%if 0%{?fedora}
+# Fix base/allocator/allocator_shim.cc:408:2: error: #error This code cannot be
+# used when exceptions are turned on.
+ARCH_FLAGS="$(echo $ARCH_FLAGS | sed -e 's/ -fexceptions / /g')"
+%endif
+
+
+# for wayland
+export CXXFLAGS="${ARCH_FLAGS} -I/usr/include/wayland -I/usr/include/libxkbcommon"
+export CFLAGS="${CXXFLAGS}"
+
+# Google has a bad coding style, using a macro `NOTREACHED()` that is not properly detected by GCC
+# multiple times throughout the codebase (including generated code). It is not possible to redefine the macro to __builtin_unreachable,
+# as it has an astonishing syntax, behaving like an ostream (in debug builds it is supposed to trap and print an error message)
+export CXXFLAGS="${CXXFLAGS} -Wno-error=return-type"
+
+# A bunch of memcpy'ing of JSObject in V8 runs us into “Logfile got too big, killed job.”
+export CXXFLAGS="${CXXFLAGS} -Wno-class-memaccess"
+# Warning spam from generated mojom code again makes the log too big
+export CXXFLAGS="${CXXFLAGS} -Wno-packed-not-aligned -Wno-address"
+
+# REDUCE DEBUG for C++ as it gets TOO large due to “heavy hemplate use in Blink”. See symbol_level below and chromium-102-compiler.patch
+export CXXFLAGS="$(echo ${CXXFLAGS} | sed -e 's/-g / /g' -e 's/-g$//g')"
+
+%ifarch %ix86 %arm
+export CFLAGS="$(echo ${CFLAGS} | sed -e 's/-g /-g1 /g' -e 's/-g$/-g1/g')"
+%endif
+
+%ifarch aarch64
+%if %{with lto}
+export CFLAGS="$(echo ${CFLAGS} | sed -e 's/-g /-g1 /g' -e 's/-g$/-g1/g')"
+%endif
+%endif
+
+
+#The chromium build process passes lots of .o files directly to the linker instead of using static libraries,
+#and relies on the linker eliminating unused sections.
+#Re-add these parameters from build/config/compiler/BUILD.gn.
+export LDFLAGS="%{?build_ldflags} -Wl,-O2 -Wl,--gc-sections "
+
+# mold does not respect it otherwise
+export LDFLAGS="$LDFLAGS -Wl,--as-needed"
+
+
+
+%ifarch %ix86 %arm
+#try to reduce memory
+
+export LDFLAGS="${LDFLAGS} -Wl,--no-keep-memory -Wl,--reduce-memory-overheads"
+%endif #ifarch ix86 arm
+
+
+%if 0%{?suse_version} >= 1550 || 0%{?sle_version} >= 150700 || 0%{?fedora}
+export CC=gcc
+export CXX=g++
+export AR=gcc-ar
+export NM=gcc-nm
+export RANLIB=gcc-ranlib
+%else
+export CC=gcc-13
+export CXX=g++-13
+export AR=gcc-ar-13
+export NM=gcc-nm-13
+export RANLIB=gcc-ranlib-13
+%endif
+
+
+
+# do not eat all memory
+# copr already set the max number of files already by default
+# https://pagure.io/fedora-infra/ansible/blob/main/f/roles/copr/backend/files/provision/files/mock/site-defaults.cfg
+# https://pagure.io/fedora-infra/ansible/blob/main/f/roles/copr/backend/files/provision/provision_builder_tasks.yml#_176-186
+# ulimit -n 4096
+
+%ifarch aarch64
+#These settings make it use much more memory leading to OOM during linking
+unset MALLOC_CHECK_
+unset MALLOC_PERTURB_
+%endif
+
+%if %{with lto}
+%ifarch aarch64
+export LDFLAGS="$LDFLAGS -flto=2 --param ggc-min-expand=20 --param ggc-min-heapsize=32768 --param lto-max-streaming-parallelism=1 -Wl,--no-keep-memory -Wl,--reduce-memory-overheads"
+%else
+# x64 is fine with the the default settings (the machines have 30GB+ ram)
+export LDFLAGS="$LDFLAGS -flto=auto"
+%endif
+%endif
+
+%if %{with mold}
+export LDFLAGS="$LDFLAGS -fuse-ld=mold"
+%endif
+
+# Ccache is truncated to 5GB which is not enough for Electron, leading to slower rebuilds
+export CCACHE_COMPRESS=1
+ccache -o max_size=0 || true
+
 # Create the configuration for GN
 # Available options: out/Release/gn args --list out/Release/
 myconf_gn=""
@@ -1118,9 +1172,7 @@ myconf_gn+=" enable_pdf=false"
 myconf_gn+=" enable_pdf_viewer=false"
 myconf_gn+=" enable_print_preview=false"
 myconf_gn+=" enable_printing=false"
-myconf_gn+=" enable_basic_printing=false"
 myconf_gn+=' use_cups=false'
-myconf_gn+=' enable_print_content_analysis=false'
 #we don't build PDF support, so disabling the below:
 #myconf_gn+=" use_system_lcms2=true"
 #myconf_gn+=" use_system_libopenjpeg2=true"
@@ -1134,7 +1186,6 @@ myconf_gn+=' content_enable_legacy_ipc=true'
 
 #do not build webextensions support
 myconf_gn+=' enable_electron_extensions=false'
-myconf_gn+=' enable_extensions_legacy_ipc=false'
 
 # The option below get overriden by whatever is in CFLAGS/CXXFLAGS, so they affect only C++ code.
 # symbol_level=2 is full debug
@@ -1142,7 +1193,12 @@ myconf_gn+=' enable_extensions_legacy_ipc=false'
 # symbol_level=0 no debuginfo (only function names in private symbols)
 # blink (HTML engine) and v8 (js engine) are template-heavy, trying to compile them with full debug leads to linker errors due to inherent limitations of the DWARF format.
 %ifnarch %ix86 %arm aarch64
+%if 0%{?fedora}
+# [10675s] lto1: internal compiler error: in build_abbrev_table, at dwarf2out.cc:9244
+myconf_gn+=' symbol_level=1'
+%else
 myconf_gn+=' symbol_level=2'
+%endif
 myconf_gn+=' blink_symbol_level=1'
 myconf_gn+=' v8_symbol_level=1'
 %endif
@@ -1153,12 +1209,25 @@ myconf_gn+=" blink_symbol_level=0"
 myconf_gn+=" v8_symbol_level=0"
 %endif
 %ifarch aarch64
+%if %{with lto}
 # linker OOM, sorry.
 # we still seem to get some debug generated during linking when LTO is enabled
 myconf_gn+=' symbol_level=0'
 myconf_gn+=' blink_symbol_level=0'
 myconf_gn+=' v8_symbol_level=0'
+%else
+%if 0%{?fedora} == 39
+myconf_gn+=' symbol_level=1'
+%else
+myconf_gn+=' symbol_level=2'
 %endif
+myconf_gn+=' blink_symbol_level=1'
+myconf_gn+=' v8_symbol_level=1'
+%endif
+%endif
+
+#symbol_level should not affect generated code.
+myconf_gn+=' enable_stack_trace_line_numbers=true'
 
 
 # do not build some chrome features not used by electron
@@ -1175,6 +1244,7 @@ myconf_gn+=" enable_captive_portal_detection=false"
 myconf_gn+=" enable_browser_speech_service=false"
 myconf_gn+=" enable_speech_service=false"
 myconf_gn+=" enable_screen_ai_service=false"
+myconf_gn+=' enable_screen_ai_browsertests=false'
 myconf_gn+=" include_transport_security_state_preload_list=false"
 myconf_gn+=" enable_web_speech=false"
 myconf_gn+=" chrome_wide_echo_cancellation_supported=false"
@@ -1199,22 +1269,23 @@ myconf_gn+=' enable_supervised_users=false'
 myconf_gn+=' enable_compose=false'
 myconf_gn+=' enterprise_cloud_content_analysis=false'
 myconf_gn+=' enterprise_local_content_analysis=false'
-myconf_gn+=' enterprise_data_controls=false'
-myconf_gn+=' enterprise_client_certificates=false'
 myconf_gn+=' enterprise_watermark=false'
-myconf_gn+=' enterprise_content_analysis=false'
+myconf_gn+=' enterprise_content_analysis=true'
+myconf_gn+=' enable_video_effects=false'
+myconf_gn+=' use_fake_screen_ai=true'
+myconf_gn+=' webnn_use_tflite=false'
+myconf_gn+=' structured_metrics_enabled=false'
+myconf_gn+=' structured_metrics_debug_enabled=false'
 
 
 #FIXME: possibly enable this when skia gets built with rust code by default.
 #Need to patch in optflags and possibly FFI LTO hacks (see signal-desktop package for how it's done)
 myconf_gn+=' enable_rust=false'
 myconf_gn+=' enable_chromium_prelude=false'
-
-#See net/base/features.cc. It's not enabled yet.
-#FIXME: enable this and add shims to build with system zstd when it's enabled
-myconf_gn+=' disable_zstd_filter=true'
+myconf_gn+=' enable_cxx=false'
 
 myconf_gn+=' chrome_certificate_policies_supported=false'
+myconf_gn+=' chrome_root_store_cert_management_ui=false'
 myconf_gn+=' use_kerberos=false'
 
 myconf_gn+=' disable_histogram_support=true'
@@ -1299,6 +1370,11 @@ myconf_gn+=" use_gold=false"
 %if %{with lto}
 myconf_gn+=" gcc_lto=true"
 # endif with lto
+%endif
+
+%if %{with gdbjit}
+#Enable GDB protocol (--js-flags=--gdbjit_full). It's disabled by default in Chromium but very useful for Node/Electron
+myconf_gn+=' v8_enable_gdbjit=true'
 %endif
 
 
@@ -1408,7 +1484,7 @@ cp /dev/stdin %{buildroot}%{_rpmconfigdir}/macros.d/macros.electron <<"EOF"
 
 # Build native modules against Electron. This should be done as the first step in ‰build. You must set CFLAGS/LDFLAGS previously.
 # You can call it multiple times in different directories and pass more parameters to it (seen in vscode)
-%%electron_rebuild PATH="%{_libexecdir}/electron-node:$PATH" npm rebuild --verbose --foreground-scripts --nodedir=%{_includedir}/electron
+%%electron_rebuild  %{?jitless} PATH="%{_libexecdir}/electron-node:$PATH" npm rebuild --verbose --foreground-scripts --nodedir=%{_includedir}/electron
 
 # Sanity check that native modules load. You must include this in ‰check if the package includes native modules (possibly in addition to actual test suites)
 # These do, in order:
