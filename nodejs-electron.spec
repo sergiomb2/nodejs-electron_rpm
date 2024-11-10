@@ -58,8 +58,6 @@ BuildArch:      i686
 %bcond_with qt
 
 
-
-
 %ifarch aarch64 riscv64
 #Video acceleration API to support. Useful for e.g. signal messenger.
 #One cannot enable both, unfortunately.
@@ -297,8 +295,6 @@ Patch589:       remove-puffin.patch
 Patch590:       remove-sync.patch
 Patch591:       fix-build-without-safebrowsing.patch
 Patch592:       fix-build-without-supervised-users.patch
-
-
 
 
 # PATCHES to use system libs
@@ -573,7 +569,7 @@ BuildRequires:  libavformat-free-devel >= %AVFORMAT_VER
 Requires: (ffmpeg-libs%{_isa} >= %RPMFUSION_VER or libavformat-free%{_isa} >= %AVFORMAT_VER)
 # have choice for libvpl.so.2()(64bit) needed by libavcodec-free: libvpl oneVPL
 %ifarch x86_64 %x86_64
-BuildRequires:  oneVPL
+BuildRequires:  libvpl-devel
 %endif
 %endif
 %else
@@ -756,8 +752,6 @@ providing better integration with desktop environments such as KDE.
 %prep
 # Use stable path to source to make use of ccache
 %autosetup -n src -p1
-
-
 
 
 # Sanity check if macro corresponds to the actual ABI
@@ -1074,7 +1068,7 @@ unset MALLOC_PERTURB_
 
 %if %{with lto}
 %ifarch aarch64
-export LDFLAGS="$LDFLAGS -flto=2 --param ggc-min-expand=20 --param ggc-min-heapsize=32768 --param lto-max-streaming-parallelism=1 -Wl,--no-keep-memory -Wl,--reduce-memory-overheads"
+export LDFLAGS="$LDFLAGS -flto=auto --param ggc-min-expand=20 --param ggc-min-heapsize=32768 --param lto-max-streaming-parallelism=1 -Wl,--no-keep-memory -Wl,--reduce-memory-overheads"
 %else
 # x64 is fine with the the default settings (the machines have 30GB+ ram)
 export LDFLAGS="$LDFLAGS -flto=auto"

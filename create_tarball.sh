@@ -166,7 +166,6 @@ echo ">>>>>> Remove bundled libs"
 keeplibs=(
     base/third_party/cityhash #Derived code, not vendored dependency.
     base/third_party/cityhash_v103 #Derived code, not vendored dep
-    base/third_party/dynamic_annotations #Derived code, not vendored dependency.
     base/third_party/icu #Derived code, not vendored dependency.
     base/third_party/superfasthash #Not a shared library.
     base/third_party/symbolize #Derived code, not vendored dependency.
@@ -214,7 +213,6 @@ keeplibs=(
     third_party/devtools-frontend/src/front_end/third_party #various javascript code compiled into chrome, see README.md
     third_party/devtools-frontend/src/front_end/third_party/puppeteer/package/lib/esm/third_party/mitt
     third_party/devtools-frontend/src/front_end/third_party/puppeteer/package/lib/esm/third_party/rxjs
-    third_party/devtools-frontend/src/test/unittests/front_end/third_party/i18n # javascript
     third_party/devtools-frontend/src/third_party/i18n #javascript
     third_party/devtools-frontend/src/third_party/typescript #Chromium added code
     third_party/distributed_point_functions #not in any distro
@@ -223,6 +221,7 @@ keeplibs=(
     third_party/electron_node #Integral part of electron
     third_party/emoji-segmenter #not available as a shared library
     third_party/fdlibm #derived code, not vendored dep
+    third_party/fp16 #Fedora 41 has it (but an old version?) Not in openSUSE. Header-only library thus we're not debundling it rn.
     third_party/hunspell #heavily forked version
     third_party/inspector_protocol #integral part of chrome
     third_party/ipcz #not in any distro
@@ -296,8 +295,8 @@ keeplibs=(
     third_party/webrtc/common_audio/third_party/ooura #derived code, not vendored dep
     third_party/webrtc/common_audio/third_party/spl_sqrt_floor #derived code, not vendored dep
     third_party/webrtc/modules/third_party/fft #derived code, not vendored dep
-    third_party/webrtc/modules/third_party/g711 #derived code, not vendored dep
-    third_party/webrtc/modules/third_party/g722 #derived code, not vendored dep
+    third_party/webrtc/modules/third_party/g711 #Fork. Original is from spandsp. Might be debundled if upstream ever accepts WebRTC's patches.
+    third_party/webrtc/modules/third_party/g722 #Fork. Original is from spandsp.
     third_party/webrtc/rtc_base/third_party/base64 #derived code, not vendored dep
     third_party/webrtc/rtc_base/third_party/sigslot #derived code, not vendored dep
     third_party/webrtc_overrides #Integral part of chrome
@@ -323,16 +322,21 @@ if [ $? -ne 0 ]; then
     cleanup_and_exit 1
 fi
 # Now remove additional bundled/duplicate libraries in node/deps
-rm -rf third_party/electron_node/deps/{googletest/{include,src},icu-small} #292MB and vendored
+rm -rf third_party/electron_node/deps/{googletest/{include,src},icu-small,corepack} #292MB and vendored
+#rm -rf third_party/electron_node/tools/gyp 15.6 has too old gyp, not unbundling for now.
+rm -rf third_party/electron_node/tools/inspector_protocol/jinja2
 find third_party/electron_node/deps/brotli -type f ! -name "*.gn" -a ! -name "*.gni" -a ! -name "*.gyp" -a ! -name "*.gypi" -delete
 find third_party/electron_node/deps/cares -type f ! -name "*.gn" -a ! -name "*.gni" -a ! -name "*.gyp" -a ! -name "*.gypi" -delete
 find third_party/electron_node/deps/nghttp2 -type f ! -name "*.gn" -a ! -name "*.gni" -a ! -name "*.gyp" -a ! -name "*.gypi" -delete
+find third_party/electron_node/deps/ngtcp2 -type f ! -name "*.gn" -a ! -name "*.gni" -a ! -name "*.gyp" -a ! -name "*.gypi" -delete
 find third_party/electron_node/deps/openssl -type f ! -name "*.gn" -a ! -name "*.gni" -a ! -name "*.gyp" -a ! -name "*.gypi" -delete
 find third_party/electron_node/deps/v8 -type f ! -name "*.gn" -a ! -name "*.gni" -a ! -name "*.gyp" -a ! -name "*.gypi" -delete
 rm -rvf third_party/electron_node/deps/v8/tools
 ln -srv v8/tools -t third_party/electron_node/deps/v8/
 find third_party/electron_node/deps/zlib -type f ! -name "*.gn" -a ! -name "*.gni" -a ! -name "*.gyp" -a ! -name "*.gypi" -delete
 
+# vendored system headers
+rm -rf build/linux/debian*sysroot
 
 #Some more chonkers
 rm -rf components/test/data #21MB

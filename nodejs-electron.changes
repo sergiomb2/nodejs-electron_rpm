@@ -1,4 +1,333 @@
 -------------------------------------------------------------------
+Tue Oct 29 10:01:13 UTC 2024 - Bruno Pitrus <brunopitrus@hotmail.com>
+
+- New upstream release 31.7.3
+  * Fixed crash when network process terminates while a net log is running.
+
+-------------------------------------------------------------------
+Fri Oct 25 03:23:53 UTC 2024 - Bruno Pitrus <brunopitrus@hotmail.com>
+
+- New upstream release 31.7.2
+  * Fixed calling setAlwaysOnTop on a hidden window which is then shown with showInactive on Linux under X11.
+  * v8: security fixes for CVE-2024-9121 CVE-2024-9122 CVE-2024-7970
+  * security fixes for CVE-2024-7025 CVE-2024-9369 (bsc#1231232)
+  * security fixes for CVE-2024-7965 CVE-2024-7966 CVE-2024-7967 (bsc#1229591)
+  * security fixes for CVE-2024-8198 CVE-2024-8193 CVE-2024-7969 (bsc#1229897)
+  * fix use after free in WebAudio (CVE-2024-8362 bsc#1230108)
+  * fix heap buffer overflow in Skia (CVE-2024-8636 bsc#1230391)
+  * fix integer overflow in Skia (CVE-2024-9123)
+
+-------------------------------------------------------------------
+Fri Oct 18 05:11:51 UTC 2024 - Bruno Pitrus <brunopitrus@hotmail.com>
+
+- New upstream release 31.7.1
+  * Fixed an issue where the exit event could be emitted twice from the utilityProcess. #44267
+  * v8: security fixes for CVE-2024-9602 and CVE-2024-9603 (bsc#1231420)
+
+-------------------------------------------------------------------
+Fri Oct 11 04:37:30 UTC 2024 - Bruno Pitrus <brunopitrus@hotmail.com>
+
+- New upstream release 31.7.0
+  * Node 20.18.0
+  * Fixed a crash when calling focus on a WebView's webContents.
+  * Fixed a potential issue accessing a child window document when overriding browserWindow creation via setWindowOpenHandler.
+  * Fixed an issue when dragging to resize when using Window Controls Overlay on Linux.
+  * Fixed an issue where an exception could be thrown on BrowserView after its owner BrowserWindow was closed.
+  * Fixed an issue where clicking the eyedropper icon did nothing instead of opening an eyedropper for color selection as expected.
+  * Ensured that the sender-id hint is set when creating desktop notifications on DBus.
+- Drop no longer needed electron-16-webpack-fix-openssl-3.patch
+- Print a message to stderr so that support logs shared by end users are clearly distinguished from upstream builds.
+
+-------------------------------------------------------------------
+Mon Sep 16 17:40:09 UTC 2024 - Bruno Pitrus <brunopitrus@hotmail.com>
+
+- Update to 31.6.0
+  * ABI break: NODE_MODULE_VERSION is now 125
+  * Chromium 126.0.6478.234
+  * Node 20.17.0
+  * V8 12.6
+  * Breaking change: Remove WebSQL support
+  * Breaking change: nativeImage.toDataURL will preserve PNG colorspace
+  * Added options parameter to Session.clearData API.
+  * Extended webContents.setWindowOpenHandler to support manual creation of BrowserWindow.
+  * clearData method added to Session
+  * Extended WebContentsView to accept pre-existing webContents object.
+  * see https://www.electronjs.org/blog/electron-31-0 and https://github.com/electron/electron/releases/tag/v31.0.0 for more
+- Drop no longer needed patches
+  * electron-13-fix-use-thin-lto.patch
+  * remove-openscreen.patch
+  * system-yuv.patch
+  * chromium-122-abseil-shims.patch
+  * electron-16-std-vector-non-const.patch
+  * fake_ssl_socket_client-Wlto-type-mismatch.patch
+  * angle-FramebufferVk-powf.patch
+  * span_reader-missing-optional.patch
+  * bitset-missing-uint8_t-memcpy.patch
+  * temporal_scalability_id_extractor-missing-bitset.patch
+  * gpu_adapter_info-missing-optional.patch
+  * first_party_sets_handler_database_helper-missing-optional.patch
+  * async_iterable-forwarding.patch
+  * script_streamer-atomic-include.patch
+- Add patches to fix build
+  * fix-build-without-safebrowsing.patch
+  * fix-build-without-supervised-users.patch
+  * Cr126-abseil-shims.patch
+  * absl-base-dynamic_annotations.patch
+  * webp-no-sharpyuv.patch
+  * http_auth_ntlm_mechanism-could-not-convert-to-base-span.patch
+  * angle-State-constexpr.patch
+  * color_provider-incomplete-ColorProviderInternal.patch
+  * run_segmenter-missing-optional.patch
+  * page_popup_controller-missing-optional.patch
+  * native_css_paint_definition-expected-unqualified-id.patch
+  * text_decoder-missing-optional.patch
+  * real_time_reporting_bindings-forward-declaration.patch
+  * blink-platform-INSIDE_BLINK-Wodr.patch
+  * quiche-QuicIntervalDeque-no-match-for-operator-mm.patch
+  * ConsumeRadii-linker-error.patch
+- Conditionally revert upstreamed ffmpeg-7-ffmpeg_video_decoder-reordered_opaque.patch on old ffmpeg
+- Revert upstream changes to build with system abseil (quiche-absl-HexStringToBytes.patch)
+- Refresh bad-font-gc patches from Debian
+- aarch64: disable LTO also on Fedora 39 due to OOM
+
+-------------------------------------------------------------------
+Sat Sep 14 08:13:25 UTC 2024 - Bruno Pitrus <brunopitrus@hotmail.com>
+
+- New upstream release 30.5.1
+  * Disable XDG portals when an old version is installed since it leads to defaultPath not working in open file dialog.
+  * Restored Chromium default Content-Disposition header parsing.
+- x86_64, ix86: enable GDB support. Run Electron with --js-flags=--gdbjit_full to see JS stack traces in debugger.
+- Remove more bundled libraries from tarball.
+
+-------------------------------------------------------------------
+Fri Sep  6 06:16:32 UTC 2024 - Bruno Pitrus <brunopitrus@hotmail.com>
+
+- New upstream release 30.5.0
+  * Node 20.16.0
+
+-------------------------------------------------------------------
+Thu Sep  5 04:59:15 UTC 2024 - Bruno Pitrus <brunopitrus@hotmail.com>
+
+- v8-strict-aliasing.patch: only use -fno-ipa-strict-aliasing, it's sufficient
+- aarch64 Tumbleweed: disable LTO and use mold linker due to OOM
+- change vendor string in process.versions to match what VSCode expects
+
+-------------------------------------------------------------------
+Sat Aug 31 09:00:18 UTC 2024 - Bruno Pitrus <brunopitrus@hotmail.com>
+
+- Fedora 40+, TW: add v8-strict-aliasing.patch to work around GCC14 miscompile
+- aarch64: remove -jitless from electron_rebuild macro, seems not needed anymore
+
+-------------------------------------------------------------------
+Sun Aug 18 07:39:42 UTC 2024 - thod_@gmx.de
+
+- New upstream release 30.4.0
+  * Added a new property prefersReducedTransparency to nativeTheme, which indicates whether the user has chosen to reduce OS-level transparency via system accessibility settings.
+  * Aligned failure pathway in File System Access API with upstream when attempting to open a file or directory in a blocked path.
+  * Fixed an issue where navigator.serial.getPorts() incorrectly returned an empty array in some cases.
+  * Fixed an issue where the File System Access API did not remember the user's last picked directory as expected.
+  * Fixed the resource leak when using Node.js readable streams as the response body for a custom protocol handler.
+  * Resolved an issue where desktopCapturer.getSources never fulfilled its promise in some cases.
+  * Security fixes for CVE-2024-6989 CVE-2024-6991 (bsc#1228942)
+  * Security fixes for CVE-2024-6776 CVE-2024-6778 CVE-2024-6777 CVE-2024-6773 CVE-2024-6774 CVE-2024-6772 CVE-2024-6775 CVE-2024-6779 (bsc#1227979)
+
+-------------------------------------------------------------------
+Tue Aug 13 20:28:37 UTC 2024 - Bruno Pitrus <brunopitrus@hotmail.com>
+
+- Fix ftbfs with ffmpeg 7.x
+  * add backported ffmpeg-7-ffmpeg_video_decoder-reordered_opaque.patch
+  * do not revert audio_file_reader-ffmpeg-AVFrame-duration.patch when building against ffmpeg 6+
+
+-------------------------------------------------------------------
+Sat Jul 20 10:02:27 UTC 2024 - Bruno Pitrus <brunopitrus@hotmail.com>
+
+- New upstream release 30.3.0
+  * Node 20.15.1
+  * Added DownloadItem.getCurrentBytesPerSecond(), DownloadItem.getPercentComplete(), DownloadItem.getEndTime().
+  * Fixed a potential crash when using off screen rendering.
+  * fix crash when resolving proxy with session.resolveProxy api
+- aarch64 Fedora 40: disable LTO due to linker oom failing build
+
+-------------------------------------------------------------------
+Fri Jul 12 10:28:06 UTC 2024 - Bruno Pitrus <brunopitrus@hotmail.com>
+
+- New upstream release 30.2.0
+  * Node 20.15.0
+  * Enabled the Windows Control Overlay API on Linux.
+  * Expose systemPreferences to utilityProcess.
+  * Fixed a focus issue when calling BrowserWindow.setTopBrowserView.
+  * Fixed an issue where fetch-dependent interfaces could be missing in Web Workers with nodeIntegrationInWorker enabled.
+  * Fixed an issue where control could fail to return properly after saving a dialog using showOpenDialogSync on Linux.
+  * Fixes an issue where the user-specified default path did not work in some circumstances when using Linux dialogs.
+  * Fixes potentially incorrect exit code in UtilityProcess.
+  * (Leap 15.5) Fix heap buffer overflow in libaom (CVE-2024-5493 bsc#1225690)
+  * Security fixes for V8: CVE-2024-6100, CVE-2024-6101 (bsc#1226504)
+  * Fix use after free in Swiftshader (CVE-2024-6291 bsc#1226933)
+
+-------------------------------------------------------------------
+Tue Jul  9 10:04:38 UTC 2024 - Bruno Pitrus <brunopitrus@hotmail.com>
+
+- Update to 30.1.2
+  * ABI break: NODE_MODULE_VERSION is now 123
+  * Chromium 124.0.6367.243
+  * Node 20.14.0
+  * V8 12.4
+  * Added WebContentsView and BaseWindow, replacing the now-deprecated BrowserView APIs.
+  * cross-origin iframes now use Permission Policy to access features
+  * Removed: The --disable-color-correct-rendering switch
+  * The inputFieldType property in the context-menu params has been removed
+  * Removed: process.getIOCounters()
+  * see https://www.electronjs.org/blog/electron-30-0 and https://github.com/electron/electron/releases/tag/v30.0.0 for more
+- Fedora: use bundled simdutf as the system version is too old
+- Drop no longer needed patches
+  * chromium-122-avoid-SFINAE-TypeConverter.patch
+  * chromium-122-BookmarkNode-missing-operator.patch
+  * chromium-98-EnumTable-crash.patch
+  * chromium-gcc11.patch
+  * CVE-2024-30260-undici-clear-proxy-authorization.patch
+  * CVE-2024-30261-undici-fetch-integrity.patch
+  * ElectronDesktopWindowTreeHostLinux-OnWindowTiledStateChanged-crash.patch
+  * grid_sizing_tree-Wchanges-meaning.patch
+  * hit_test_request-missing-optional.patch
+  * InternalAllocator-too-many-initializers.patch
+  * material_color_utilities-tones-missing-round.patch
+  * nested-nested-nested-nested-nested-nested-regex-patterns.patch
+  * perfetto-numeric_storage-double_t.patch
+  * plus_address_types-missing-optional.patch
+  * race_network_request_write_buffer_manager-missing-optional.patch
+  * resolution_monitor-missing-bitset.patch
+  * script_promise_resolver-explicit-specialization.patch
+  * search_engine_choice_service-missing-optional.patch
+  * text_break_iterator-icu74-breakAllLineBreakClassTable-should-be-consistent.patch
+  * v8-instance-type-inl-constexpr-used-before-its-definition.patch
+- Drop no longer needed -Wno-error=narrowing from CXXFLAGS
+- Add patches to fix build
+  * chromium-124-shims.patch
+  * enable_stack_trace_line_numbers-symbol_level.patch
+  * angle-FramebufferVk-powf.patch
+  * licenses.py-FileNotFoundError.patch
+  * span_reader-missing-optional.patch
+  * bitset-missing-uint8_t-memcpy.patch
+  * temporal_scalability_id_extractor-missing-bitset.patch
+  * gpu_adapter_info-missing-optional.patch
+  * first_party_sets_handler_database_helper-missing-optional.patch
+  * async_iterable-forwarding.patch
+  * preview_cancel_reason-missing-string.patch
+  * script_streamer-atomic-include.patch
+- Add -Wno-packed-not-aligned -Wno-address to CXXFLAGS to suppress build logspam
+- Add libaom_av1_encoder-aom37-AV1E_SET_MAX_CONSEC_FRAME_DROP_CBR.patch to build with old libaom
+- Add backported DesktopNativeWidgetAura-HandleActivationChanged-crash.patch
+- Revert upstream changes which introduce a use-after-free bug causing crashes (bsc#1224178 deb#1067886)
+  * bad-font-gc0000.patch
+  * bad-font-gc000.patch
+  * bad-font-gc00.patch
+  * bad-font-gc0.patch
+  * bad-font-gc11.patch
+  * bad-font-gc1.patch
+  * bad-font-gc2.patch
+  * bad-font-gc3.patch
+
+
+-------------------------------------------------------------------
+Thu Jul  4 04:27:14 UTC 2024 - Bruno Pitrus <brunopitrus@hotmail.com>
+
+- Fix use after free in content::RenderFrameHostImpl::RemoveDocumentService (bsc#1227307)
+  * RenderFrameHostImpl-use-after-free.patch: correct second instance of the same bug
+- ix86, aarch64: pass --jitless in %electron_rebuild macro to work around crashes on OBS and unblock downstream packages
+
+-------------------------------------------------------------------
+Fri Jun 28 16:56:51 UTC 2024 - Bruno Pitrus <brunopitrus@hotmail.com>
+
+- New upstream release 29.4.3
+  * Fixed an issue where navigator.usb.getDevices() could crash in some circumstances.
+  * Fixed an issue where bad flags passed via --js-flags could cause a crash.
+  * Fixed an issue where control could fail to return properly after saving a dialog using showOpenDialogSync on Linux.
+  * Fixed an issue where some calls to WebUSB methods could crash.
+  * Fixed potentially incorrect exit code in UtilityProcess.
+  * Fixed support for multiple folder/file selection in //shell_dialogs portal implementation.
+  * Security fixes for CVE-2024-5499 CVE-2024-5493 CVE-2024-5496 (bsc#1225690)
+  * Security fixes for CVE-2024-5158 CVE-2024-5157 CVE-2024-5159 (bsc#1224818)
+  * Security fixes for CVE-2024-6100 CVE-2024-6101 (bsc#1226504)
+- Correct .desktop file name to match the CHROME_DESKTOP environment variable.
+
+-------------------------------------------------------------------
+Wed Jun 12 14:54:32 UTC 2024 - Bruno Pitrus <brunopitrus@hotmail.com>
+
+- Do not build //components/sync to reduce linker load and binary size (remove-sync.patch)
+- Add backported ElectronDesktopWindowTreeHostLinux-OnWindowTiledStateChanged-crash.patch
+  to fix segfault due to type confusion (bsc#1223366 gh#electron/electron#41839)
+- Re-enable custom malloc now that the crash is fixed
+- Use system vulkan headers wherever system spirv is used
+- Drop Fedora 38 support
+  * drop v8-icu73-alt_calendar.patch
+  * drop v8-icu73-simple-case-folding.patch
+
+-------------------------------------------------------------------
+Wed May 29 20:19:39 UTC 2024 - Bruno Pitrus <brunopitrus@hotmail.com>
+
+- New upstream release 29.4.2
+  * no user-visible changes
+
+-------------------------------------------------------------------
+Thu May 23 19:16:26 UTC 2024 - Bruno Pitrus <brunopitrus@hotmail.com>
+
+- New upstream release 29.4.1
+  * no user-visible changes
+
+-------------------------------------------------------------------
+Wed May 15 14:58:40 UTC 2024 - Bruno Pitrus <brunopitrus@hotmail.com>
+
+- New upstream release 29.4.0
+  * Fix setuid() not affecting libuv's internal io_uring operations (CVE-2024-22017 bsc#1219995)
+
+-------------------------------------------------------------------
+Sat May 11 22:35:19 UTC 2024 - Bruno Pitrus <brunopitrus@hotmail.com>
+
+- nodejs-electron-devel:
+  * Introduce /usr/libexec/electron-node wrapper scripts
+  * Introduce `electron_rebuild`, `electron_check_native`
+    and `electron_check_native_unstable` RPM macros to ease packaging Electron apps
+  * Correct some injected compiler flags (common.gypi-compiler.patch)
+
+-------------------------------------------------------------------
+Thu May  9 05:33:05 UTC 2024 - Bruno Pitrus <brunopitrus@hotmail.com>
+
+- New upstream release 29.3.3
+  * Fixed an issue where fs.createWriteStream could write out of order.
+  * Avoid some crashes when launching new process if Electron package is upgraded while apps are running
+  * Fix use after free in V8 (CVE-2024-3914 bsc#1222958)
+  * Fix use after free in Angle (CVE-2024-4558 bsc#1224045)
+  * a11y: avoid clearing/resetting focus on an already focused element.
+
+-------------------------------------------------------------------
+Wed May  8 19:57:09 UTC 2024 - Bruno Pitrus <brunopitrus@hotmail.com>
+
+- Build all translations for devtools, not just Chinese.
+  * more-locales.patch
+  * devtools-frontend-compress_files-oom.patch
+
+-------------------------------------------------------------------
+Fri May  3 07:59:49 UTC 2024 - Bruno Pitrus <brunopitrus@hotmail.com>
+
+- Change version number to reflect this is a git snapshot.
+  Upstream removed the tag (gh#electron/electron#42025) due to their CI being broken (gh#electron/electron#42005)
+  but AFAIK there isn't anything wrong with the code itself so we're still publishing it.
+
+-------------------------------------------------------------------
+Thu May  2 18:52:39 UTC 2024 - Bruno Pitrus <brunopitrus@hotmail.com>
+
+- New upstream relese 29.3.2
+  * Fixes an issue where console.log() in AudioWorkletGlobalScope produced incorrect output.
+  * electron doesn't paint on offscreen-render mode after gpu process crashed
+  * fix type confusion in ANGLE (CVE-2024-4058)
+
+-------------------------------------------------------------------
+Fri Apr 26 19:05:05 UTC 2024 - Bruno Pitrus <brunopitrus@hotmail.com>
+
+- Disable custom malloc due to bizarre segfaults (bsc#1223366)
+- x86_64 Tumbleweed and Fedora: increase debuginfo quality
+
+-------------------------------------------------------------------
 Fri Apr 19 20:11:24 UTC 2024 - Bruno Pitrus <brunopitrus@hotmail.com>
 
 - Update to electron 29.3.1

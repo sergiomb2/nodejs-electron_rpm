@@ -110,13 +110,14 @@ diff --git a/third_party/blink/renderer/platform/fonts/opentype/font_format_chec
 index 7c7057b..d43668f1 100644
 --- a/third_party/blink/renderer/platform/fonts/opentype/font_format_check.cc
 +++ b/third_party/blink/renderer/platform/fonts/opentype/font_format_check.cc
-@@ -7,10 +7,10 @@
- // Include HarfBuzz to have a cross-platform way to retrieve table tags without
+@@ -7,11 +7,11 @@
  // having to rely on the platform being able to instantiate this font format.
  #include <hb.h>
+ 
 +#include <hb-cplusplus.hh>
  
- #include "base/sys_byteorder.h"
+ #include "base/containers/span.h"
+ #include "base/numerics/byte_conversions.h"
  #include "third_party/blink/renderer/platform/wtf/vector.h"
 -#include "third_party/harfbuzz-ng/utils/hb_scoped.h"
  #include "third_party/skia/include/core/SkTypeface.h"
@@ -254,9 +255,9 @@ index b4bb5a3..b6ee0a8f 100644
  // clang-format on
  
 @@ -52,7 +53,6 @@
- #include "third_party/blink/renderer/platform/wtf/hash_map.h"
- #include "third_party/blink/renderer/platform/wtf/math_extras.h"
  #include "third_party/blink/renderer/platform/wtf/text/character_names.h"
+ #include "third_party/blink/renderer/platform/wtf/thread_specific.h"
+ #include "third_party/blink/renderer/platform/wtf/wtf.h"
 -#include "third_party/harfbuzz-ng/utils/hb_scoped.h"
  #include "third_party/skia/include/core/SkPaint.h"
  #include "third_party/skia/include/core/SkPath.h"
@@ -439,15 +440,6 @@ index caf5d49..0d4b6f9 100644
  #include "base/check_op.h"
  #include "third_party/blink/renderer/platform/fonts/font_platform_data.h"
  #include "third_party/blink/renderer/platform/fonts/opentype/open_type_vertical_data.h"
-@@ -81,7 +83,7 @@
-     return vertical_data_;
-   }
- 
--  HbScoped<hb_font_t> unscaled_font_;
-+  hb::unique_ptr<hb_font_t> unscaled_font_;
-   SkFont font_;
- 
-   // Capture these scaled fallback metrics from FontPlatformData so that a
 diff --git a/third_party/harfbuzz-ng/BUILD.gn b/third_party/harfbuzz-ng/BUILD.gn
 index 522e164d..4b64e1b 100644
 --- a/third_party/harfbuzz-ng/BUILD.gn
