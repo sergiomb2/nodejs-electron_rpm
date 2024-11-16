@@ -108,7 +108,7 @@ BuildArch:      i686
 
 
 
-%if 0%{?suse_version} || 0%{?fedora} < 40
+%if 0%{?suse_version} || 0%{?fedora} < 40 || 0%{?fedora} >= 41
 %bcond_without system_minizip
 %else
 %bcond_with system_minizip
@@ -130,7 +130,7 @@ BuildArch:      i686
 %endif
 
 
-%if 0%{?suse_version} >= 1550 || 0%{?sle_version} >= 150600
+%if 0%{?suse_version} >= 1550 || 0%{?sle_version} >= 150600 || 0%{?fedora} >= 41
 %bcond_without system_yuv
 %else
 %bcond_with system_yuv
@@ -169,8 +169,11 @@ BuildArch:      i686
 %endif
 
 # requires `run_convert_utf8_to_latin1_with_errors`
+%if 0%{?fedora} >= 41
+%bcond_without system_simdutf
+%else
 %bcond_with system_simdutf
-
+%endif
 
 #requires `imageSequenceTrackPresent` and `enableParsingGainMapMetadata` both of which are only in post-1.0.0 nightlies
 %bcond_with system_avif
@@ -182,7 +185,7 @@ BuildArch:      i686
 %bcond_with system_abseil
 %endif
 
-%if 0%{?suse_version} >= 1550 || 0%{?sle_version} >= 150700
+%if 0%{?suse_version} >= 1550 || 0%{?sle_version} >= 150700 || 0%{?fedora} >= 41
 #re2-11 has abseil as a public dependency. If you use system re2 you must use system abseil.
 %bcond_without system_re2
 %else
@@ -228,7 +231,7 @@ BuildArch:      i686
 
 Name:           nodejs-electron
 Version:        31.7.3
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        Build cross platform desktop apps with JavaScript, HTML, and CSS
 License:        Apache-2.0 AND blessing AND BSD-2-Clause AND BSD-3-Clause AND BSD-Source-Code AND bzip2-1.0.6 AND ISC AND LGPL-2.0-or-later AND LGPL-2.1-or-later AND MIT AND MIT-CMU AND MIT-open-group AND (MPL-1.1 OR GPL-2.0-or-later OR LGPL-2.1-or-later) AND MPL-2.0 AND OpenSSL AND SGI-B-2.0 AND SUSE-Public-Domain AND X11%{!?with_system_minizip: AND Zlib}
 Group:          Development/Languages/NodeJS
@@ -326,6 +329,7 @@ Patch1082:      chromium-124-shims.patch
 Patch1083:      Cr126-abseil-shims.patch
 Patch1084:      absl-base-dynamic_annotations.patch
 Patch1085:      webp-no-sharpyuv.patch
+Patch1086:      zip_internal-missing-uLong-Z_DEFAULT_COMPRESSION.patch
 
 
 # PATCHES to fix interaction with third-party software
@@ -408,6 +412,8 @@ Patch3172:      real_time_reporting_bindings-forward-declaration.patch
 Patch3173:      blink-platform-INSIDE_BLINK-Wodr.patch
 Patch3174:      quiche-QuicIntervalDeque-no-match-for-operator-mm.patch
 Patch3175:      ConsumeRadii-linker-error.patch
+Patch3176:      swiftshader-llvm19-LLVMJIT-getHostCPUFeatures.patch
+Patch3177:      swiftshader-llvm19-LLVMReactor-incomplete-Module.patch
 
 # Patches to re-enable upstream force disabled features.
 # There's no sense in submitting them but they may be reused as-is by other packagers.
@@ -567,10 +573,6 @@ BuildRequires:  pkgconfig(libavutil) >= 58
 #requires av_stream_get_first_dts, see rhbz#2240127
 BuildRequires:  libavformat-free-devel >= %AVFORMAT_VER
 Requires: (ffmpeg-libs%{_isa} >= %RPMFUSION_VER or libavformat-free%{_isa} >= %AVFORMAT_VER)
-# have choice for libvpl.so.2()(64bit) needed by libavcodec-free: libvpl oneVPL
-%ifarch x86_64 %x86_64
-BuildRequires:  libvpl-devel
-%endif
 %endif
 %else
 BuildRequires:  pkgconfig(libavcodec)
@@ -605,8 +607,12 @@ BuildRequires:  pkgconfig(libxml-2.0) >= 2.9.5
 BuildRequires:  pkgconfig(libxslt)
 BuildRequires:  pkgconfig(libxxhash)
 %if %{with system_yuv}
+%if 0%{?suse_version}
 # needs I410ToI420
 BuildRequires:  pkgconfig(libyuv) >= 1855
+%endif
+# Fedora does not provide meaningful versioning, sorry
+BuildRequires:  pkgconfig(libyuv)
 %endif
 BuildRequires:  pkgconfig(libzstd)
 %if %{with system_minizip}
@@ -1006,6 +1012,8 @@ export CXXFLAGS="${CXXFLAGS} -Wno-error=return-type"
 export CXXFLAGS="${CXXFLAGS} -Wno-class-memaccess"
 # Warning spam from generated mojom code again makes the log too big
 export CXXFLAGS="${CXXFLAGS} -Wno-packed-not-aligned -Wno-address"
+# warning spam in third_party/blink/renderer/bindings/modules/v8
+export CXXFLAGS="${CXXFLAGS} -Wno-template-id-cdtor -Wno-non-virtual-dtor"
 
 # REDUCE DEBUG for C++ as it gets TOO large due to “heavy hemplate use in Blink”. See symbol_level below and chromium-102-compiler.patch
 export CXXFLAGS="$(echo ${CXXFLAGS} | sed -e 's/-g / /g' -e 's/-g$//g')"
@@ -1035,7 +1043,7 @@ export LDFLAGS="$LDFLAGS -Wl,--as-needed"
 #try to reduce memory
 
 export LDFLAGS="${LDFLAGS} -Wl,--no-keep-memory -Wl,--reduce-memory-overheads"
-%endif #ifarch ix86 arm
+%endif
 
 
 %if 0%{?suse_version} >= 1550 || 0%{?sle_version} >= 150700 || 0%{?fedora}
@@ -1427,7 +1435,7 @@ desktop-file-install --dir %{buildroot}%{_datadir}/applications/ %{SOURCE11}
 pushd out/Release
 install -pm 0644 version                 -t %{buildroot}%{_libdir}/electron/
 
-gn desc . //electron:electron_app runtime_deps | grep -v ^gen/ | sort | uniq | xargs -t cp -l -v --parents -t %{buildroot}%{_libdir}/electron/ --
+gn desc . //electron:electron_app runtime_deps | grep -v ^gen/ | sort | uniq | xargs -t cp -a -v --parents -t %{buildroot}%{_libdir}/electron/ --
 
 
 popd
@@ -1578,6 +1586,9 @@ ln -srv third_party -t out/Release
 %endif
 
 %changelog
+* Mon Nov 11 2024 Sérgio Basto <sergio@serjux.com> - 31.7.3-2
+- Update opensuse patches
+
 * Sun May 26 2024 Sérgio Basto <sergio@serjux.com> - 29.4.0-2
 - add NODEJS_DEFAULT_VER
 
