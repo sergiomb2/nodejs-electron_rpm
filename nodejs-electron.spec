@@ -29,9 +29,6 @@
 # Do not provide libEGL.so, etc…
 %define __provides_exclude ^lib.*\\.so.*$
 
-# Double DWZ memory limits
-%define _dwz_low_mem_die_limit  20000000
-%define _dwz_max_die_limit     100000000
 
 
 #x86 requires SSE2
@@ -168,6 +165,12 @@ BuildArch:      i686
 %bcond_with system_vma
 %endif
 
+%if 0%{?fedora} >= 40
+%bcond_without system_ada
+%else
+%bcond_with system_ada
+%endif
+
 # requires `run_convert_utf8_to_latin1_with_errors`
 %if 0%{?fedora} >= 41
 %bcond_without system_simdutf
@@ -230,8 +233,8 @@ BuildArch:      i686
 
 
 Name:           nodejs-electron
-Version:        31.7.3
-Release:        2%{?dist}
+Version:        31.7.5
+Release:        1%{?dist}
 Summary:        Build cross platform desktop apps with JavaScript, HTML, and CSS
 License:        Apache-2.0 AND blessing AND BSD-2-Clause AND BSD-3-Clause AND BSD-Source-Code AND bzip2-1.0.6 AND ISC AND LGPL-2.0-or-later AND LGPL-2.1-or-later AND MIT AND MIT-CMU AND MIT-open-group AND (MPL-1.1 OR GPL-2.0-or-later OR LGPL-2.1-or-later) AND MPL-2.0 AND OpenSSL AND SGI-B-2.0 AND SUSE-Public-Domain AND X11%{!?with_system_minizip: AND Zlib}
 Group:          Development/Languages/NodeJS
@@ -330,6 +333,7 @@ Patch1083:      Cr126-abseil-shims.patch
 Patch1084:      absl-base-dynamic_annotations.patch
 Patch1085:      webp-no-sharpyuv.patch
 Patch1086:      zip_internal-missing-uLong-Z_DEFAULT_COMPRESSION.patch
+Patch1087:      system-ada-url.patch
 
 
 # PATCHES to fix interaction with third-party software
@@ -441,6 +445,9 @@ BuildRequires:  hwdata
 BuildRequires:  ImageMagick
 %if 0%{?fedora}
 BuildRequires:  libatomic
+%endif
+%if %{with system_ada}
+BuildRequires:  cmake(ada)
 %endif
 %if %{with system_aom}
 # requires AV1E_SET_QUANTIZER_ONE_PASS
@@ -938,6 +945,10 @@ build/linux/unbundle/replace_gn_files.py --system-libraries ${gn_system_librarie
 find third_party/angle/src/third_party/volk -type f ! -name "*.gn" -a ! -name "*.gni"  -delete
 %endif
 
+%if %{with system_ada}
+find third_party/electron_node/deps/ada -type f ! -name "*.gn" -a ! -name "*.gni" -a ! -name "*.gyp" -a ! -name "*.gypi" -delete
+%endif
+
 %if %{with system_llhttp}
 find third_party/electron_node/deps/llhttp -type f ! -name "*.gn" -a ! -name "*.gni" -a ! -name "*.gyp" -a ! -name "*.gypi" -delete
 %endif
@@ -1076,7 +1087,7 @@ unset MALLOC_PERTURB_
 
 %if %{with lto}
 %ifarch aarch64
-export LDFLAGS="$LDFLAGS -flto=auto --param ggc-min-expand=20 --param ggc-min-heapsize=32768 --param lto-max-streaming-parallelism=1 -Wl,--no-keep-memory -Wl,--reduce-memory-overheads"
+export LDFLAGS="$LDFLAGS -flto=2 --param ggc-min-expand=20 --param ggc-min-heapsize=32768 --param lto-max-streaming-parallelism=1 -Wl,--no-keep-memory -Wl,--reduce-memory-overheads"
 %else
 # x64 is fine with the the default settings (the machines have 30GB+ ram)
 export LDFLAGS="$LDFLAGS -flto=auto"
@@ -1357,6 +1368,9 @@ myconf_gn+=" use_system_harfbuzz=true"
 myconf_gn+=" use_system_freetype=true"
 myconf_gn+=" use_system_cares=true"
 myconf_gn+=" use_system_nghttp2=true"
+%if %{with system_ada}
+myconf_gn+=' use_system_ada=true'
+%endif
 %if %{with system_llhttp}
 myconf_gn+=" use_system_llhttp=true"
 %endif
