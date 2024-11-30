@@ -77,21 +77,7 @@ BuildArch:      i686
 %bcond_without gdbjit
 %endif
 
-%ifnarch %ix86 %arm aarch64
-%if (0%{?suse_version} >= 1550 || 0%{?sle_version} >= 150700 || 0%{?fedora})
 %bcond_without lto
-%else
-%bcond_with lto
-%endif
-%endif
-
-%ifarch %ix86 %arm
-%bcond_with lto
-%endif
-
-%ifarch aarch64
-%bcond_with lto
-%endif
 
 %ifarch aarch64
 %if 0%{?suse_version}
@@ -234,7 +220,7 @@ BuildArch:      i686
 
 Name:           nodejs-electron
 Version:        31.7.5
-Release:        1%{?dist}
+Release:        3%{?dist}
 Summary:        Build cross platform desktop apps with JavaScript, HTML, and CSS
 License:        Apache-2.0 AND blessing AND BSD-2-Clause AND BSD-3-Clause AND BSD-Source-Code AND bzip2-1.0.6 AND ISC AND LGPL-2.0-or-later AND LGPL-2.1-or-later AND MIT AND MIT-CMU AND MIT-open-group AND (MPL-1.1 OR GPL-2.0-or-later OR LGPL-2.1-or-later) AND MPL-2.0 AND OpenSSL AND SGI-B-2.0 AND SUSE-Public-Domain AND X11%{!?with_system_minizip: AND Zlib}
 Group:          Development/Languages/NodeJS
@@ -385,6 +371,9 @@ Patch2058:      v8-strict-aliasing.patch
 %else
 Source2058:     v8-strict-aliasing.patch
 %endif
+#Fix opus audio not working (eg. Element voice messages)
+Patch2059:      disable-FFmpegAllowLists.patch
+
 
 # PATCHES that should be submitted upstream verbatim or near-verbatim
 # Fix blink nodestructor
@@ -1600,6 +1589,12 @@ ln -srv third_party -t out/Release
 %endif
 
 %changelog
+* Fri Nov 29 2024 Sérgio Basto <sergio@serjux.com> - 31.7.5-3
+- enable lto
+
+* Thu Nov 28 2024 Sérgio Basto <sergio@serjux.com> - 31.7.5-2
+- Fix audio
+
 * Mon Nov 11 2024 Sérgio Basto <sergio@serjux.com> - 31.7.3-2
 - Update opensuse patches
 

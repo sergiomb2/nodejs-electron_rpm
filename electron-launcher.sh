@@ -1,7 +1,7 @@
 #!/bin/bash
 
->&2 echo 'This build of Electron is provided by openSUSE and contains various modifications.'
->&2 echo 'Please report problems at https://bugzilla.opensuse.org/enter_bug.cgi?classification=openSUSE and not to upstream bug trackers.'
+>&2 echo 'This build of Electron is provided by openSUSE and contains various modifications and built in copr for Fedora.'
+>&2 echo 'Please report problems by email to sergiomb@fedoraproject.org and not to upstream bug trackers.'
 
 
 set -euo pipefail
