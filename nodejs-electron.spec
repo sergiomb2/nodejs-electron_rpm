@@ -91,7 +91,7 @@ BuildArch:      i686
 
 
 
-%if 0%{?suse_version} || 0%{?fedora} < 40 || 0%{?fedora} >= 41
+%if 0%{?suse_version} || 0%{?fedora} >= 41
 %bcond_without system_minizip
 %else
 %bcond_with system_minizip
@@ -129,13 +129,6 @@ BuildArch:      i686
 %bcond_with ffmpeg_6
 %endif
 
-%if 0%{?suse_version} >= 1550 || 0%{?sle_version} >= 150700 || 0%{?fedora} >= 40
-%bcond_without gcc14
-%else
-%bcond_with gcc14
-%endif
-
-
 %if 0%{?fedora}
 %bcond_without system_llhttp
 %bcond_without system_histogram
@@ -145,17 +138,14 @@ BuildArch:      i686
 %endif
 
 
-%if 0%{?fedora} >= 39
+%if 0%{?fedora}
 %bcond_without system_vma
-%else
-%bcond_with system_vma
-%endif
-
-%if 0%{?fedora} >= 40
 %bcond_without system_ada
 %else
+%bcond_with system_vma
 %bcond_with system_ada
 %endif
+
 
 # requires `run_convert_utf8_to_latin1_with_errors`
 %if 0%{?fedora} >= 41
@@ -168,7 +158,7 @@ BuildArch:      i686
 %bcond_with system_avif
 
 # Some chromium code assumes absl::string_view is a typedef for std::string_view. This is not true on GCC7 systems such as Leap.
-%if 0%{?suse_version} >= 1550 || 0%{?sle_version} >= 150700 || 0%{?fedora} >= 39
+%if 0%{?suse_version} >= 1550 || 0%{?sle_version} >= 150700 || 0%{?fedora}
 %bcond_without system_abseil
 %else
 %bcond_with system_abseil
@@ -219,8 +209,8 @@ BuildArch:      i686
 
 
 Name:           nodejs-electron
-Version:        31.7.5
-Release:        3%{?dist}
+Version:        31.7.6
+Release:        1%{?dist}
 Summary:        Build cross platform desktop apps with JavaScript, HTML, and CSS
 License:        Apache-2.0 AND blessing AND BSD-2-Clause AND BSD-3-Clause AND BSD-Source-Code AND bzip2-1.0.6 AND ISC AND LGPL-2.0-or-later AND LGPL-2.1-or-later AND MIT AND MIT-CMU AND MIT-open-group AND (MPL-1.1 OR GPL-2.0-or-later OR LGPL-2.1-or-later) AND MPL-2.0 AND OpenSSL AND SGI-B-2.0 AND SUSE-Public-Domain AND X11%{!?with_system_minizip: AND Zlib}
 Group:          Development/Languages/NodeJS
@@ -365,12 +355,8 @@ Patch2054:      bad-font-gc11.patch
 Patch2055:      bad-font-gc1.patch
 Patch2056:      bad-font-gc2.patch
 Patch2057:      bad-font-gc3.patch
-#Work around gcc14 overly aggressive optimizer. Interestingly applying this patch produces a *different* crash on gcc13 + LTO.
-%if %{with gcc14}
+#Work around gcc14 overly aggressive optimizer.
 Patch2058:      v8-strict-aliasing.patch
-%else
-Source2058:     v8-strict-aliasing.patch
-%endif
 #Fix opus audio not working (eg. Element voice messages)
 Patch2059:      disable-FFmpegAllowLists.patch
 
@@ -661,15 +647,13 @@ BuildRequires:  libjpeg-turbo-devel
 BuildRequires:  pkgconfig(vpx) >= 1.13~
 %endif
 %if 0%{?suse_version} >= 1550 || 0%{?sle_version} >= 150700 || 0%{?fedora}
-BuildRequires:  gcc >= 13
-BuildRequires:  gcc-c++ >= 13
-%else
-BuildRequires:  gcc13-PIE
-BuildRequires:  gcc13-c++
-%endif
-%if %{with gcc14}
+BuildRequires:  gcc >= 14
 BuildRequires:  gcc-c++ >= 14
+%else
+BuildRequires:  gcc14-PIE
+BuildRequires:  gcc14-c++
 %endif
+
 %if %{with pipewire}
 BuildRequires:  pkgconfig(libpipewire-0.3)
 BuildRequires:  pkgconfig(libspa-0.2)
@@ -1053,11 +1037,11 @@ export AR=gcc-ar
 export NM=gcc-nm
 export RANLIB=gcc-ranlib
 %else
-export CC=gcc-13
-export CXX=g++-13
-export AR=gcc-ar-13
-export NM=gcc-nm-13
-export RANLIB=gcc-ranlib-13
+export CC=gcc-14
+export CXX=g++-14
+export AR=gcc-ar-14
+export NM=gcc-nm-14
+export RANLIB=gcc-ranlib-14
 %endif
 
 
@@ -1218,11 +1202,7 @@ myconf_gn+=' symbol_level=0'
 myconf_gn+=' blink_symbol_level=0'
 myconf_gn+=' v8_symbol_level=0'
 %else
-%if 0%{?fedora} == 39
-myconf_gn+=' symbol_level=1'
-%else
 myconf_gn+=' symbol_level=2'
-%endif
 myconf_gn+=' blink_symbol_level=1'
 myconf_gn+=' v8_symbol_level=1'
 %endif
