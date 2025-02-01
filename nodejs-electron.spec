@@ -184,8 +184,8 @@ ExcludeArch: %arm
 
 
 Name:           nodejs-electron
-Version:        33.3.1
-Release:        1%{?dist}
+Version:        33.3.2
+Release:        2%{?dist}
 Summary:        Build cross platform desktop apps with JavaScript, HTML, and CSS
 License:        Apache-2.0 AND blessing AND BSD-2-Clause AND BSD-3-Clause AND BSD-Source-Code AND bzip2-1.0.6 AND ISC AND LGPL-2.0-or-later AND LGPL-2.1-or-later AND MIT AND MIT-CMU AND MIT-open-group AND (MPL-1.1 OR GPL-2.0-or-later OR LGPL-2.1-or-later) AND MPL-2.0 AND OpenSSL AND SGI-B-2.0 AND SUSE-Public-Domain AND X11%{!?with_system_minizip: AND Zlib}
 Group:          Development/Languages/NodeJS
@@ -371,6 +371,7 @@ Patch3182:      css_attr_value_tainting-missing-once_flag.patch
 Patch3183:      vtt_scanner-missing-variant.patch
 Patch3184:      electron_usb_delegate-incomplete-UsbDeviceInfo.patch
 Patch3185:      bsc1224178-font-gc.patch
+Patch3186:      string_view-incomplete-CodePointIterator.patch
 
 # Patches to re-enable upstream force disabled features.
 # There's no sense in submitting them but they may be reused as-is by other packagers.
@@ -976,6 +977,7 @@ export CFLAGS="$(echo ${CFLAGS} | sed -e 's/-g /-g1 /g' -e 's/-g$/-g1/g')"
 
 %ifarch aarch64
 %if %{with lto}
+# Out of memory: Killed process 4016 (lto1-wpa)
 export CFLAGS="$(echo ${CFLAGS} | sed -e 's/-g /-g1 /g' -e 's/-g$/-g1/g')"
 %endif
 %endif
@@ -1028,7 +1030,7 @@ unset MALLOC_PERTURB_
 
 %if %{with lto}
 %ifarch aarch64
-export LDFLAGS="$LDFLAGS -flto=2 --param ggc-min-expand=20 --param ggc-min-heapsize=32768 --param lto-max-streaming-parallelism=1 -Wl,--no-keep-memory -Wl,--reduce-memory-overheads"
+export LDFLAGS="$LDFLAGS -flto=auto --param ggc-min-expand=20 --param ggc-min-heapsize=32768 --param lto-max-streaming-parallelism=1 -Wl,--no-keep-memory -Wl,--reduce-memory-overheads"
 %else
 # x64 is fine with the the default settings (the machines have 30GB+ ram)
 export LDFLAGS="$LDFLAGS -flto=auto"
@@ -1150,7 +1152,11 @@ myconf_gn+=' enable_electron_extensions=false'
 # [10675s] lto1: internal compiler error: in build_abbrev_table, at dwarf2out.cc:9244
 myconf_gn+=' symbol_level=1'
 %else
+%if %{without lto}
+myconf_gn+=' symbol_level=1' # relocation truncated to fit
+%else
 myconf_gn+=' symbol_level=2'
+%endif
 %endif
 myconf_gn+=' blink_symbol_level=1'
 myconf_gn+=' v8_symbol_level=1'
@@ -1535,6 +1541,9 @@ ln -srv third_party -t out/Release
 %endif
 
 %changelog
+* Fri Jan 24 2025 Sérgio Basto <sergio@serjux.com> - 33.3.1-2
+- debug g0
+
 * Fri Nov 29 2024 Sérgio Basto <sergio@serjux.com> - 31.7.5-3
 - enable lto
 
