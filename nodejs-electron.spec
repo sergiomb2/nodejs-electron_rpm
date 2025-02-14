@@ -19,7 +19,7 @@
 
 #%%undefine _package_note_file
 # https://fedoraproject.org/wiki/Changes/SetBuildFlagsBuildCheck
-%undefine _auto_set_build_flags
+#%%undefine _auto_set_build_flags
 #%%global debug_package %%{nil}
 
 %define mod_name electron
@@ -184,8 +184,8 @@ ExcludeArch: %arm
 
 
 Name:           nodejs-electron
-Version:        33.3.2
-Release:        2%{?dist}
+Version:        33.4.0
+Release:        1%{?dist}
 Summary:        Build cross platform desktop apps with JavaScript, HTML, and CSS
 License:        Apache-2.0 AND blessing AND BSD-2-Clause AND BSD-3-Clause AND BSD-Source-Code AND bzip2-1.0.6 AND ISC AND LGPL-2.0-or-later AND LGPL-2.1-or-later AND MIT AND MIT-CMU AND MIT-open-group AND (MPL-1.1 OR GPL-2.0-or-later OR LGPL-2.1-or-later) AND MPL-2.0 AND OpenSSL AND SGI-B-2.0 AND SUSE-Public-Domain AND X11%{!?with_system_minizip: AND Zlib}
 Group:          Development/Languages/NodeJS
@@ -340,6 +340,7 @@ Patch2059:      disable-FFmpegAllowLists.patch
 Patch2060:      chromium-129-disable-H.264-video-parser-during-demuxing.patch
 Patch2061:      private_aggregation_host-uint128.patch
 Patch2062:      wayland_version.patch
+Patch2063:      fix-building-with-pipewire-1.3.82.patch
 
 
 # PATCHES that should be submitted upstream verbatim or near-verbatim
@@ -458,7 +459,7 @@ BuildRequires:  snappy-devel
 BuildRequires:  update-desktop-files
 %endif
 BuildRequires:  util-linux
-BuildRequires:  vulkan-headers
+BuildRequires:  vulkan-headers >= 1.3
 %if %{with system_vma}
 BuildRequires:  VulkanMemoryAllocator-devel >= 3
 %endif
@@ -951,7 +952,6 @@ ARCH_FLAGS="$ARCH_FLAGS -DIS_SERIAL_ENABLED_PLATFORM"
 ARCH_FLAGS="$(echo $ARCH_FLAGS | sed -e 's/ -fexceptions / /g')"
 %endif
 
-
 # for wayland
 export CXXFLAGS="${ARCH_FLAGS} -I/usr/include/wayland -I/usr/include/libxkbcommon"
 export CFLAGS="${CXXFLAGS}"
@@ -973,13 +973,6 @@ export CXXFLAGS="$(echo ${CXXFLAGS} | sed -e 's/-g / /g' -e 's/-g$//g')"
 
 %ifarch %ix86 %arm
 export CFLAGS="$(echo ${CFLAGS} | sed -e 's/-g /-g1 /g' -e 's/-g$/-g1/g')"
-%endif
-
-%ifarch aarch64
-%if %{with lto}
-# Out of memory: Killed process 4016 (lto1-wpa)
-export CFLAGS="$(echo ${CFLAGS} | sed -e 's/-g /-g1 /g' -e 's/-g$/-g1/g')"
-%endif
 %endif
 
 
@@ -1168,16 +1161,9 @@ myconf_gn+=" blink_symbol_level=0"
 myconf_gn+=" v8_symbol_level=0"
 %endif
 %ifarch aarch64
-%if %{with lto}
-# linker OOM, sorry.
-myconf_gn+=' symbol_level=0'
-myconf_gn+=' blink_symbol_level=0'
-myconf_gn+=' v8_symbol_level=0'
-%else
 myconf_gn+=' symbol_level=2'
 myconf_gn+=' blink_symbol_level=1'
 myconf_gn+=' v8_symbol_level=1'
-%endif
 %endif
 
 #symbol_level should not affect generated code.
@@ -1541,6 +1527,9 @@ ln -srv third_party -t out/Release
 %endif
 
 %changelog
+* Fri Feb 14 2025 Sérgio Basto <sergio@serjux.com> - 33.4.0-1
+- 33.4
+
 * Fri Jan 24 2025 Sérgio Basto <sergio@serjux.com> - 33.3.1-2
 - debug g0
 
