@@ -116,10 +116,8 @@ ExcludeArch: %arm
 
 
 %if 0%{?fedora}
-%bcond_without system_vma
 %bcond_without system_ada
 %else
-%bcond_with system_vma
 %bcond_with system_ada
 %endif
 
@@ -129,6 +127,12 @@ ExcludeArch: %arm
 %bcond_without system_simdutf
 %else
 %bcond_with system_simdutf
+%endif
+
+%if 0%{?fedora} && 0%{?fedora} < 42
+%bcond_without system_vma
+%else
+%bcond_with system_vma
 %endif
 
 #requires `imageSequenceTrackPresent` and `enableParsingGainMapMetadata` both of which are only in post-1.0.0 nightlies
@@ -184,7 +188,7 @@ ExcludeArch: %arm
 
 
 Name:           nodejs-electron
-Version:        33.4.0
+Version:        33.4.1
 Release:        1%{?dist}
 Summary:        Build cross platform desktop apps with JavaScript, HTML, and CSS
 License:        Apache-2.0 AND blessing AND BSD-2-Clause AND BSD-3-Clause AND BSD-Source-Code AND bzip2-1.0.6 AND ISC AND LGPL-2.0-or-later AND LGPL-2.1-or-later AND MIT AND MIT-CMU AND MIT-open-group AND (MPL-1.1 OR GPL-2.0-or-later OR LGPL-2.1-or-later) AND MPL-2.0 AND OpenSSL AND SGI-B-2.0 AND SUSE-Public-Domain AND X11%{!?with_system_minizip: AND Zlib}
@@ -975,6 +979,13 @@ export CXXFLAGS="$(echo ${CXXFLAGS} | sed -e 's/-g / /g' -e 's/-g$//g')"
 export CFLAGS="$(echo ${CFLAGS} | sed -e 's/-g /-g1 /g' -e 's/-g$/-g1/g')"
 %endif
 
+%ifarch aarch64
+%if %{with lto}
+# Out of memory: Killed process 4016 (lto1-wpa)
+export CFLAGS="$(echo ${CFLAGS} | sed -e 's/-g /-g1 /g' -e 's/-g$/-g1/g')"
+%endif
+%endif
+
 
 #The chromium build process passes lots of .o files directly to the linker instead of using static libraries,
 #and relies on the linker eliminating unused sections.
@@ -1161,9 +1172,16 @@ myconf_gn+=" blink_symbol_level=0"
 myconf_gn+=" v8_symbol_level=0"
 %endif
 %ifarch aarch64
+%if %{with lto}
+# linker OOM, sorry.
+myconf_gn+=' symbol_level=0'
+myconf_gn+=' blink_symbol_level=0'
+myconf_gn+=' v8_symbol_level=0'
+%else
 myconf_gn+=' symbol_level=2'
 myconf_gn+=' blink_symbol_level=1'
 myconf_gn+=' v8_symbol_level=1'
+%endif
 %endif
 
 #symbol_level should not affect generated code.
