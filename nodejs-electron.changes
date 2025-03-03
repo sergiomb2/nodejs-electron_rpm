@@ -1,4 +1,185 @@
 -------------------------------------------------------------------
+Thu Feb 27 19:50:15 UTC 2025 - Bruno Pitrus <brunopitrus@hotmail.com>
+
+- New upstream release 33.4.2
+  * Updated Node.js to v20.18.3
+  * Backported fix for a upstream bug that cause Offscreen Rendering to stutter.
+  * Fixed WebFrameMain crash related to accessing speculative frames that have been destroyed.
+  * Fixed v8.setHeapSnapshotNearHeapLimit api in main and utility process,
+    along with support for --diagnostic-dir Node.js cli flag to specify the directory to save the heap snapshots.
+  * Security fixes for V8: CVE-2025-0611 CVE-2025-0612 CVE-2025-0999. (bsc#1236306 bsc#1237343)
+- 15.6: revert upstream changes to build with c-ares 1.19
+  * node-cares-1.21.patch
+
+-------------------------------------------------------------------
+Sun Feb 16 10:53:13 UTC 2025 - Bruno Pitrus <brunopitrus@hotmail.com>
+
+- New upstream release 33.4.1
+  * Fixed crashes on aarch64 with 16KiB pages.
+  * Fixed crash when accessing WebFrameMain frames and name attributes on destroyed frames.
+- Fedora 42+: use bundled vk_mem_alloc again to fix build error
+
+-------------------------------------------------------------------
+Thu Feb 13 09:28:36 UTC 2025 - Antonio Larrosa <alarrosa@suse.com>
+
+- Add patch to fix build with pipewire 1.3.82:
+  * fix-building-with-pipewire-1.3.82.patch 
+
+-------------------------------------------------------------------
+Thu Feb  6 21:20:53 UTC 2025 - Bruno Pitrus <brunopitrus@hotmail.com>
+
+- New upstream release 33.4.0
+  * Added permission support for document.executeCommand("paste").
+  * Fixed crash in gin::wrappable::secondweakcallback.
+
+-------------------------------------------------------------------
+Wed Jan 22 22:41:56 UTC 2025 - Bruno Pitrus <brunopitrus@hotmail.com>
+
+- New upstream release 33.3.2
+  * Updated Chromium to 130.0.6723.191
+  * fix yellow background of composition text with wayland text-input-v3
+  * The avoidClosingConnections option for session.clearData now properly
+    defaults to false when the dataTypes option is not set.
+  * Fixed an issue where drag-dropping two directories would cause
+    getAsFileSystemHandle to never resolve.
+  * Fixed a potential crash in chrome.tabs.update().
+  * security fixes for CVE-2025-0434 CVE-2025-0436 CVE-2025-0437 (bsc#1235892)
+- Add string_view-incomplete-CodePointIterator.patch to fix build error
+
+-------------------------------------------------------------------
+Tue Jan 14 18:51:39 UTC 2025 - Bruno Pitrus <brunopitrus@hotmail.com>
+
+- Add MakeSbixTypeface-null-pointer-call.patch
+  * fixes crash when handling SBIX color bitmap fonts (bsc#1235830)
+
+-------------------------------------------------------------------
+Sun Jan 12 12:38:29 UTC 2025 - Bruno Pitrus <brunopitrus@hotmail.com>
+
+- Update to 33.3.1
+  * Drop 32-bit support
+  * chromium 130.0.6723.170
+  * node 20.18.0
+  * v8 13.0
+  * Behavior Changed: frame properties may retrieve detached WebFrameMain instances or none at all
+  * Behavior Changed: webContents property on login on app
+  * Added a handler, app.setClientCertRequestPasswordHandler(handler), to help unlock cryptographic devices when a PIN is needed.
+  * Added View.setBorderRadius(radius) for customizing the border radius of views—with compatibility for WebContentsView.
+  * Extended navigationHistory API with 2 new functions for better history management. #42014
+  * see https://github.com/electron/electron/releases/tag/v33.0.0 and https://www.electronjs.org/blog/electron-33-0 for more
+- Disable aarch64 builds due to OBS hardware limits. Sorry.
+- Drop Leap 15.5 support
+- Drop no longer needed patches 
+  * absl-base-dynamic_annotations.patch
+  * angle-State-constexpr.patch
+  * chromium-124-shims.patch
+  * color_provider-incomplete-ColorProviderInternal.patch
+  * ConsumeRadii-linker-error.patch
+  * Cr126-abseil-shims.patch
+  * crashpad-use-system-abseil.patch
+  * DesktopNativeWidgetAura-HandleActivationChanged-crash.patch
+  * harfbuzz-replace-chromium-scoped-type.patch
+  * harfbuzz-replace-HbScopedPointer.patch
+  * http_auth_ntlm_mechanism-could-not-convert-to-base-span.patch
+  * licenses.py-FileNotFoundError.patch
+  * native_css_paint_definition-expected-unqualified-id.patch
+  * page_popup_controller-missing-optional.patch
+  * partition_alloc-no-lto.patch
+  * preview_cancel_reason-missing-string.patch
+  * quiche-QuicIntervalDeque-no-match-for-operator-mm.patch
+  * real_time_reporting_bindings-forward-declaration.patch
+  * run_segmenter-missing-optional.patch
+  * skia-system-vulkan-headers.patch
+  * system-zlib.patch
+  * text_decoder-missing-optional.patch
+  * wayland-proto-31-cursor-shape.patch
+- Drop libaom_av1_encoder-aom37-AV1E_SET_MAX_CONSEC_FRAME_DROP_CBR.patch and replace it with more fine-grained reverts:
+  * aom3.10-AV1E_SET_MAX_CONSEC_FRAME_DROP_MS_CBR.patch
+  * aom3.10-AV1E_SET_AUTO_TILES.patch
+  * webrtc-aom3.8-AV1E_SET_MAX_CONSEC_FRAME_DROP_CBR.patch
+  * webrtc-aom3.8-AV1E_SET_MAX_CONSEC_FRAME_DROP_CBR-2.patch
+- Drop the following revert:
+  * bad-font-gc0000.patch
+  * bad-font-gc000.patch
+  * bad-font-gc00.patch
+  * bad-font-gc0.patch
+  * bad-font-gc11.patch
+  * bad-font-gc1.patch
+  * bad-font-gc2.patch
+  * bad-font-gc3.patch
+- Add bsc1224178-font-gc.patch for a proper fix for bsc#1224178 deb#1067886
+- Add backported or forwardable patches to fix build errors:
+  * account_id-missing-optional.patch
+  * css_attr_value_tainting-missing-once_flag.patch
+  * electron_usb_delegate-incomplete-UsbDeviceInfo.patch
+  * exception_context-missing-variant.patch
+  * fix-build-without-service-discovery.patch
+  * ip_protection_data_types-missing-optional.patch
+  * skia_image_decoder_base-missing-stack.patch
+  * vtt_scanner-missing-variant.patch
+  * wayland_connection-Wchanges-meaning.patch
+- Add patches to fix build errors due to our changes:
+  * build-without-speech-service.patch
+  * chromium-123-qrcode.patch
+  * chromium-125-cloud_authenticator.patch
+  * chromium-127-cargo_crate.patch
+  * chromium-127-crabby.patch
+  * chromium-129-disable-H.264-video-parser-during-demuxing.patch
+  * chromium-130-fontations.patch
+  * cr130-abseil-remove-unused-deps.patch
+  * cr130-absl-base.patch
+  * delete-old-language-detection-which-uses-tflite.patch
+  * fix-build-without-screen-ai.patch
+  * private_aggregation_host-uint128.patch
+  * remove-libphonenumber.patch
+  * system-absl_algorithm.patch
+  * wayland_version.patch
+- 15.6: use bundled vulkan and spirv headers
+- 15.6: revert upstream changes to build with old wayland
+  * wayland-protocol-toplevel-icon.patch
+  * wayland-protocol-toplevel-icon-2.patch
+  * wayland-protocol-toplevel-drag.patch
+- Use bundled yuv everywhere due to system version being too old
+
+
+-------------------------------------------------------------------
+Wed Nov 27 20:33:48 UTC 2024 - Bruno Pitrus <brunopitrus@hotmail.com>
+
+- New upstream release 31.7.6
+  * no user-visible changes
+- Leap: build with gcc 14
+- Drop Fedora 39 support
+
+-------------------------------------------------------------------
+Tue Nov 26 14:11:01 UTC 2024 - Bruno Pitrus <brunopitrus@hotmail.com>
+
+- Fix ffmpeg refusing to play opus audio files (disable-FFmpegAllowLists.patch)
+
+-------------------------------------------------------------------
+Sun Nov 17 08:04:39 UTC 2024 - Bruno Pitrus <brunopitrus@hotmail.com>
+
+- New upstream release 31.7.5
+  * Fixed an issue where WebContentsViews were being improperly removed.
+  * Fixed an issue where the windows control overlay was unexpectedly visible in fullscreen.
+  * Fix use after free in Serial (CVE-2024-10827 bsc#1232843)
+
+-------------------------------------------------------------------
+Tue Nov 12 22:49:39 UTC 2024 - Bruno Pitrus <brunopitrus@hotmail.com>
+
+- New upstream release 31.7.4
+  * Fixed segfault when moving WebContentsView between BrowserWindows
+  * Fix type confusion in v8 (CVE-2024-10231 bsc#1232060)
+- Fedora 40+ build with system ada url (system-ada-url.patch)
+
+-------------------------------------------------------------------
+Sun Nov 10 09:28:49 UTC 2024 - Bruno Pitrus <brunopitrus@hotmail.com>
+
+- Fix build on Fedora 41+:
+  * zip_internal-missing-uLong-Z_DEFAULT_COMPRESSION.patch
+  * swiftshader-llvm19-LLVMJIT-getHostCPUFeatures.patch
+  * swiftshader-llvm19-LLVMReactor-incomplete-Module.patch
+  * build with system minizip, yuv, simdutf, re2
+
+-------------------------------------------------------------------
 Tue Oct 29 10:01:13 UTC 2024 - Bruno Pitrus <brunopitrus@hotmail.com>
 
 - New upstream release 31.7.3

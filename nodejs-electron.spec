@@ -98,12 +98,14 @@ ExcludeArch: %arm
 %bcond_without ffmpeg_6
 %bcond_without wayland_34
 %bcond_without system_vk_headers
+%bcond_without cares_21
 %else
 %bcond_with system_vpx
 %bcond_with bro_11
 %bcond_with ffmpeg_6
 %bcond_with wayland_34
 %bcond_with system_vk_headers
+%bcond_with cares_21
 %endif
 
 %if 0%{?fedora}
@@ -188,7 +190,7 @@ ExcludeArch: %arm
 
 
 Name:           nodejs-electron
-Version:        33.4.1
+Version:        33.4.2
 Release:        1%{?dist}
 Summary:        Build cross platform desktop apps with JavaScript, HTML, and CSS
 License:        Apache-2.0 AND blessing AND BSD-2-Clause AND BSD-3-Clause AND BSD-Source-Code AND bzip2-1.0.6 AND ISC AND LGPL-2.0-or-later AND LGPL-2.1-or-later AND MIT AND MIT-CMU AND MIT-open-group AND (MPL-1.1 OR GPL-2.0-or-later OR LGPL-2.1-or-later) AND MPL-2.0 AND OpenSSL AND SGI-B-2.0 AND SUSE-Public-Domain AND X11%{!?with_system_minizip: AND Zlib}
@@ -216,6 +218,8 @@ Source421:       wayland-protocol-toplevel-icon-2.patch
 Source422:       wayland-protocol-toplevel-drag.patch
 # and abseil 2401
 Source460:      quiche-absl-HexStringToBytes.patch
+# and c-ares 1.19
+Source470:      node-cares-1.21.patch
 
 
 
@@ -384,8 +388,9 @@ Patch5000:      more-locales.patch
 Patch5006:      chromium-vaapi.patch
 
 BuildRequires:  brotli
-%if %{with system_cares}
 BuildRequires:  c-ares-devel
+%if %{with cares_21}
+BuildRequires:  c-ares-devel >= 1.21
 %endif
 BuildRequires:  cmake(Crc32c)
 BuildRequires:  double-conversion-devel
@@ -463,6 +468,12 @@ BuildRequires:  snappy-devel
 BuildRequires:  update-desktop-files
 %endif
 BuildRequires:  util-linux
+%if %{with system_vk_headers}
+# Actually we need also SpvFPEncoding from spirv-headers but Fedora version is non-indicative.
+# Let's only specify the vulkan version because they are usually updated together.
+BuildRequires:  vulkan-headers >= 1.3.296
+%endif
+#For skia, needed anyway
 BuildRequires:  vulkan-headers >= 1.3
 %if %{with system_vma}
 BuildRequires:  VulkanMemoryAllocator-devel >= 3
@@ -732,6 +743,10 @@ patch -R -p1 < %PATCH3177
 patch -R -p1 < %SOURCE422
 patch -R -p1 < %SOURCE421
 patch -R -p1 < %SOURCE420
+%endif
+
+%if %{without cares_21}
+patch -R -p1 < %SOURCE470
 %endif
 
 
@@ -1545,6 +1560,9 @@ ln -srv third_party -t out/Release
 %endif
 
 %changelog
+* Mon Mar 03 2025 Sérgio Basto <sergio@serjux.com> - 33.4.2-1
+- Update to 33.4.2
+
 * Fri Feb 14 2025 Sérgio Basto <sergio@serjux.com> - 33.4.0-1
 - 33.4
 
