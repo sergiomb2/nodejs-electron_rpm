@@ -190,8 +190,8 @@ ExcludeArch: %arm
 
 
 Name:           nodejs-electron
-Version:        33.4.2
-Release:        1%{?dist}
+Version:        33.4.9
+Release:        2%{?dist}
 Summary:        Build cross platform desktop apps with JavaScript, HTML, and CSS
 License:        Apache-2.0 AND blessing AND BSD-2-Clause AND BSD-3-Clause AND BSD-Source-Code AND bzip2-1.0.6 AND ISC AND LGPL-2.0-or-later AND LGPL-2.1-or-later AND MIT AND MIT-CMU AND MIT-open-group AND (MPL-1.1 OR GPL-2.0-or-later OR LGPL-2.1-or-later) AND MPL-2.0 AND OpenSSL AND SGI-B-2.0 AND SUSE-Public-Domain AND X11%{!?with_system_minizip: AND Zlib}
 Group:          Development/Languages/NodeJS
@@ -311,11 +311,6 @@ Patch1090:      cr130-absl-base.patch
 # PATCHES to fix interaction with third-party software
 Patch2010:      chromium-93-ffmpeg-4.4.patch
 
-#Since ffmpeg 5, there is no longer first_dts member in AVFormat. Chromium upstream (and Tumbleweed) patches ffmpeg to add a av_stream_get_first_dts function.
-#Upstream ref: https://chromium-review.googlesource.com/c/chromium/src/+/3525614
-#This patch is only for Leap which uses ffmpeg 4. It makes chromium use the old api and does not work with ffmpeg 5.
-Patch2012:      chromium-94-ffmpeg-roll.patch
-
 # Fixe builds with older clang versions that do not allow
 # nomerge attributes on declaration. Otherwise, the following error
 # is produced:
@@ -381,6 +376,7 @@ Patch3183:      vtt_scanner-missing-variant.patch
 Patch3184:      electron_usb_delegate-incomplete-UsbDeviceInfo.patch
 Patch3185:      bsc1224178-font-gc.patch
 Patch3186:      string_view-incomplete-CodePointIterator.patch
+Patch3187:      swiftshader-llvm20-absoluteSymbols.patch
 
 # Patches to re-enable upstream force disabled features.
 # There's no sense in submitting them but they may be reused as-is by other packagers.
@@ -751,9 +747,7 @@ patch -R -p1 < %SOURCE470
 
 
 
-%if %{with ffmpeg_6}
-patch -R -p1 < %PATCH2012
-%else
+%if %{without ffmpeg_6}
 patch -R -p1 < %SOURCE403
 patch -R -p1 < %SOURCE402
 patch -R -p1 < %SOURCE400
@@ -1049,7 +1043,7 @@ unset MALLOC_PERTURB_
 
 %if %{with lto}
 %ifarch aarch64
-export LDFLAGS="$LDFLAGS -flto=auto --param ggc-min-expand=20 --param ggc-min-heapsize=32768 --param lto-max-streaming-parallelism=1 -Wl,--no-keep-memory -Wl,--reduce-memory-overheads"
+export LDFLAGS="$LDFLAGS -flto=auto --param ggc-min-expand=20 --param ggc-min-heapsize=32768 --param lto-max-streaming-parallelism=3 -Wl,--no-keep-memory -Wl,--reduce-memory-overheads"
 %else
 # x64 is fine with the the default settings (the machines have 30GB+ ram)
 export LDFLAGS="$LDFLAGS -flto=auto"
@@ -1560,6 +1554,9 @@ ln -srv third_party -t out/Release
 %endif
 
 %changelog
+* Mon Mar 24 2025 Sérgio Basto <sergio@serjux.com> - 33.4.6-2
+- 33.4.6
+
 * Mon Mar 03 2025 Sérgio Basto <sergio@serjux.com> - 33.4.2-1
 - Update to 33.4.2
 
