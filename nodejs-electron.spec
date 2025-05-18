@@ -77,6 +77,7 @@ ExcludeArch: %arm
 %bcond_without gdbjit
 %endif
 
+#We no longer support 32-bit.
 %bcond_without lto
 
 %bcond_with mold
