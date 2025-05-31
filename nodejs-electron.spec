@@ -120,6 +120,11 @@ ExcludeArch: %arm
 %bcond_with system_ada
 %endif
 
+%if 0%{?fedora} >= 43
+%bcond_without llhttp_93
+%else
+%bcond_with llhttp_93
+%endif
 
 # requires `base64_options`
 %if 0%{?fedora} >= 42
@@ -185,7 +190,7 @@ ExcludeArch: %arm
 
 Name:           nodejs-electron
 Version:        35.4.0
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        Build cross platform desktop apps with JavaScript, HTML, and CSS
 License:        Apache-2.0 AND blessing AND BSD-2-Clause AND BSD-3-Clause AND BSD-Source-Code AND bzip2-1.0.6 AND ISC AND LGPL-2.0-or-later AND LGPL-2.1-or-later AND MIT AND MIT-CMU AND MIT-open-group AND (MPL-1.1 OR GPL-2.0-or-later OR LGPL-2.1-or-later) AND MPL-2.0 AND OpenSSL AND SGI-B-2.0 AND SUSE-Public-Domain AND X11%{!?with_system_minizip: AND Zlib}
 Group:          Development/Languages/NodeJS
@@ -333,7 +338,11 @@ Patch2062:      wayland_version.patch
 Patch2063:      fix-building-with-pipewire-1.3.82.patch
 #Conditionably disable feature which requires new highway
 Patch2064:      blink-shape_result-highway.patch
-
+%if %{with system_llhttp} && %{with llhttp_93}
+Patch2065:      node-llhttp9.3.patch
+%else
+Source2065:      node-llhttp9.3.patch
+%endif
 
 # PATCHES that should be submitted upstream verbatim or near-verbatim
 # Fix blink nodestructor
@@ -420,6 +429,11 @@ BuildRequires:  libpng-devel
 BuildRequires:  libXNVCtrl-devel
 %if %{with system_llhttp}
 BuildRequires:  llhttp-devel >= 8
+%if %{with llhttp_93}
+BuildRequires:  llhttp-devel >= 9.3
+%else
+BuildRequires:  llhttp-devel < 9.3
+%endif
 %endif
 %if %{with swiftshader} && %{without subzero}
 BuildRequires:  llvm-devel >= 16
@@ -1027,7 +1041,7 @@ unset MALLOC_PERTURB_
 
 %if %{with lto}
 %ifarch aarch64
-export LDFLAGS="$LDFLAGS -flto=auto --param ggc-min-expand=20 --param ggc-min-heapsize=32768 --param lto-max-streaming-parallelism=6 -Wl,--no-keep-memory -Wl,--reduce-memory-overheads"
+export LDFLAGS="$LDFLAGS -flto=auto --param ggc-min-expand=20 --param ggc-min-heapsize=32768 --param lto-max-streaming-parallelism=3 "
 %else
 # x64 is fine with the the default settings (the machines have 30GB+ ram)
 export LDFLAGS="$LDFLAGS -flto=auto"
