@@ -55,21 +55,10 @@ ExcludeArch: %arm
 %bcond_with qt
 
 
-%ifarch aarch64 riscv64
 #Video acceleration API to support. Useful for e.g. signal messenger.
 #One cannot enable both, unfortunately.
-#Apparently more arm hardware supports v4l2 than vaapi,
-#but that code does not build on armv{6,7}hl due to too high cpu requirements.
-#bcond_without v4l2
-#bcond_with vaapi
-%else
-#bcond_with v4l2
-#bcond_without vaapi
-%endif
-
-#DISABLING THIS — cannot use video acceleration with system aom/vpx
 %bcond_with v4l2
-%bcond_with vaapi
+%bcond_without vaapi
 
 %ifarch %arm aarch64 riscv64
 %bcond_with gdbjit
@@ -91,8 +80,6 @@ ExcludeArch: %arm
 %bcond_without system_vk_headers
 %bcond_without spirv_2024
 %bcond_without cares_21
-#sqlite requires being compiled with session support, not a specific version.
-%bcond_without system_sqlite
 %else
 %bcond_with system_vpx
 %bcond_with bro_11
@@ -100,7 +87,6 @@ ExcludeArch: %arm
 %bcond_with system_vk_headers
 %bcond_with spirv_2024
 %bcond_with cares_21
-%bcond_with system_sqlite
 %endif
 
 %if 0%{?fedora}
@@ -189,7 +175,7 @@ ExcludeArch: %arm
 
 
 Name:           nodejs-electron
-Version:        35.5.1
+Version:        35.7.5
 Release:        1%{?dist}
 Summary:        Build cross platform desktop apps with JavaScript, HTML, and CSS
 License:        Apache-2.0 AND blessing AND BSD-2-Clause AND BSD-3-Clause AND BSD-Source-Code AND bzip2-1.0.6 AND ISC AND LGPL-2.0-or-later AND LGPL-2.1-or-later AND MIT AND MIT-CMU AND MIT-open-group AND (MPL-1.1 OR GPL-2.0-or-later OR LGPL-2.1-or-later) AND MPL-2.0 AND OpenSSL AND SGI-B-2.0 AND SUSE-Public-Domain AND X11%{!?with_system_minizip: AND Zlib}
@@ -281,6 +267,7 @@ Patch604:       disable-avif-really.patch
 Patch605:       permission-gcc14.2.patch
 Patch606:       build-without-extensions.patch
 Patch607:       build-without-guest-view.patch
+Patch608:       vaapi-no-encoders.patch
 
 
 
@@ -391,11 +378,11 @@ Patch3208:      to_vector-std-projected-gcc119888.patch
 Patch3209:      file_dialog-missing-uint32_t.patch
 Patch3211:      html_permission_element_strings_map-reproducible.patch
 Patch3212:      extensions-common-assert.patch
+Patch3213:      python3.14-nodedownload-FancyURLopener.patch
 
 # Patches to re-enable upstream force disabled features.
 # There's no sense in submitting them but they may be reused as-is by other packagers.
 Patch5000:      more-locales.patch
-Patch5006:      chromium-vaapi.patch
 
 BuildRequires:  brotli
 BuildRequires:  c-ares-devel
@@ -645,7 +632,7 @@ BuildRequires:  libjpeg-turbo-devel
 # requires VP9E_SET_QUANTIZER_ONE_PASS
 BuildRequires:  pkgconfig(vpx) >= 1.13~
 %endif
-%if 0%{?suse_version} >= 1550 || 0%{?sle_version} >= 150700 || 0%{?fedora}
+%if 0%{?suse_version} >= 1650 || 0%{?fedora}
 BuildRequires:  gcc >= 14
 BuildRequires:  gcc-c++ >= 14
 %else
@@ -762,9 +749,6 @@ patch -R -p1 < %SOURCE401
 patch -R -p1 < %SOURCE480
 %endif
 
-%if %{without system_sqlite}
-patch -R -p1 < %PATCH1093
-%endif
 
 
 # This one just removes compatibility with old abseil and does not add anything, reverting unconditionally.
@@ -915,9 +899,6 @@ find third_party/electron_node/deps/histogram -type f ! -name "*.gn" -a ! -name 
 find third_party/electron_node/deps/simdjson -type f ! -name "*.gn" -a ! -name "*.gni" -a ! -name "*.gyp" -a ! -name "*.gypi" -delete
 %endif
 
-%if %{with system_sqlite}
-find third_party/electron_node/deps/sqlite -type f ! -name "*.gn" -a ! -name "*.gni" -a ! -name "*.gyp" -a ! -name "*.gypi" -delete
-%endif
 
 
 %build
@@ -990,13 +971,6 @@ export CXXFLAGS="$(echo ${CXXFLAGS} | sed -e 's/-g / /g' -e 's/-g$//g')"
 export CFLAGS="$(echo ${CFLAGS} | sed -e 's/-g /-g1 /g' -e 's/-g$/-g1/g')"
 %endif
 
-%ifarch aarch64
-%if %{with lto}
-# Out of memory: Killed process 4016 (lto1-wpa)
-export CFLAGS="$(echo ${CFLAGS} | sed -e 's/-g /-g1 /g' -e 's/-g$/-g1/g')"
-%endif
-%endif
-
 
 #The chromium build process passes lots of .o files directly to the linker instead of using static libraries,
 #and relies on the linker eliminating unused sections.
@@ -1015,7 +989,7 @@ export LDFLAGS="${LDFLAGS} -Wl,--no-keep-memory -Wl,--reduce-memory-overheads"
 %endif
 
 
-%if 0%{?suse_version} >= 1550 || 0%{?sle_version} >= 150700 || 0%{?fedora}
+%if 0%{?suse_version} >= 1650 || 0%{?fedora}
 export CC=gcc
 export CXX=g++
 export AR=gcc-ar
@@ -1168,34 +1142,17 @@ myconf_gn+=' enable_platform_apps=false'
 # symbol_level=0 no debuginfo (only function names in private symbols)
 # blink (HTML engine) and v8 (js engine) are template-heavy, trying to compile them with full debug leads to linker errors due to inherent limitations of the DWARF format.
 
-%ifnarch %ix86 %arm aarch64
 %if 0%{?fedora}
 myconf_gn+=' symbol_level=1' #OOM during linking
 %else
+%ifarch aarch64 #OOM or logidlelimit, pick your poison
+myconf_gn+=' symbol_level=1'
+%else
 myconf_gn+=' symbol_level=2'
+%endif
 %endif
 myconf_gn+=' blink_symbol_level=1'
 myconf_gn+=' v8_symbol_level=1'
-%else
-%ifarch %ix86 %arm
-#Sorry, no debug on 32bit.
-myconf_gn+=" symbol_level=1"
-myconf_gn+=" blink_symbol_level=0"
-myconf_gn+=" v8_symbol_level=0"
-%endif
-%ifarch aarch64
-%if %{with lto}
-# linker OOM, sorry.
-myconf_gn+=' symbol_level=0'
-myconf_gn+=' blink_symbol_level=0'
-myconf_gn+=' v8_symbol_level=0'
-%else
-myconf_gn+=' symbol_level=2'
-myconf_gn+=' blink_symbol_level=1'
-myconf_gn+=' v8_symbol_level=1'
-%endif
-%endif
-%endif
 
 #symbol_level should not affect generated code.
 myconf_gn+=' enable_stack_trace_line_numbers=true'
