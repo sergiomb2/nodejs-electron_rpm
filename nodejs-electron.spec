@@ -174,7 +174,7 @@ ExcludeArch: %arm
 
 Name:           nodejs-electron
 Version:        37.5.0
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        Build cross platform desktop apps with JavaScript, HTML, and CSS
 License:        Apache-2.0 AND blessing AND BSD-2-Clause AND BSD-3-Clause AND BSD-Source-Code AND bzip2-1.0.6 AND ISC AND LGPL-2.0-or-later AND LGPL-2.1-or-later AND MIT AND MIT-CMU AND MIT-open-group AND (MPL-1.1 OR GPL-2.0-or-later OR LGPL-2.1-or-later) AND MPL-2.0 AND OpenSSL AND SGI-B-2.0 AND SUSE-Public-Domain AND X11%{!?with_system_minizip: AND Zlib}
 Group:          Development/Languages/NodeJS
@@ -365,6 +365,7 @@ Patch3220:      picture_in_picture_events_info-string-constexpr.patch
 Patch3221:      event_record-optional-initializer.patch
 Patch3222:      ANNOTATE_CONTIGUOUS_CONTAINER-Wodr.patch
 Patch3223:      v8-simd-flax-vector-conversions.patch
+Patch3224:      swiftshader-llvm21.patch
 
 # Patches to re-enable upstream force disabled features.
 # There's no sense in submitting them but they may be reused as-is by other packagers.
@@ -1065,6 +1066,8 @@ myconf_gn+=' electron_vendor_version="suse:Electron for Fedora"'
 myconf_gn+=" custom_toolchain=\"//build/toolchain/linux/unbundle:default\""
 myconf_gn+=" host_toolchain=\"//build/toolchain/linux/unbundle:default\""
 myconf_gn+=" use_custom_libcxx=false"
+myconf_gn+=' use_safe_libstdcxx=false'
+myconf_gn+=' use_llvm_libatomic=false'
 %ifarch %ix86
 myconf_gn+=" host_cpu=\"x86\""
 %endif
@@ -1553,6 +1556,9 @@ ln -srvf third_party -t out/Release
 %endif
 
 %changelog
+* Mon Sep 15 2025 Sérgio Basto <sergio@serjux.com> - 37.5.0-2
+- aarch64: add swiftshader-llvm21.patch to fix ftbfs with new LLVM
+
 * Fri Apr 25 2025 Sérgio Basto <sergio@serjux.com> - 33.4.10-1
 - Update to 33.4.10
 
