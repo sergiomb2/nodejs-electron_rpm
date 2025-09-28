@@ -173,16 +173,16 @@ ExcludeArch: %arm
 
 
 Name:           nodejs-electron
-Version:        37.5.0
-Release:        2%{?dist}
+Version:        37.5.1
+Release:        1%{?dist}
 Summary:        Build cross platform desktop apps with JavaScript, HTML, and CSS
-License:        Apache-2.0 AND blessing AND BSD-2-Clause AND BSD-3-Clause AND BSD-Source-Code AND bzip2-1.0.6 AND ISC AND LGPL-2.0-or-later AND LGPL-2.1-or-later AND MIT AND MIT-CMU AND MIT-open-group AND (MPL-1.1 OR GPL-2.0-or-later OR LGPL-2.1-or-later) AND MPL-2.0 AND OpenSSL AND SGI-B-2.0 AND SUSE-Public-Domain AND X11%{!?with_system_minizip: AND Zlib}
+License:        Apache-2.0 AND blessing AND BSD-2-Clause AND BSD-3-Clause AND BSD-Source-Code AND bzip2-1.0.6 AND ISC AND LGPL-2.0-or-later AND LGPL-2.1-or-later AND MIT AND MIT-CMU AND MIT-open-group AND (MPL-1.1 OR GPL-2.0-or-later OR LGPL-2.1-or-later) AND MPL-2.0 AND OpenSSL AND SGI-B-2.0 AND SUSE-Public-Domain AND X11
 Group:          Development/Languages/NodeJS
 URL:            https://github.com/electron/electron
 Source0:        %{mod_name}-%{version}.tar.zst
 Source1:        create_tarball.sh
 Source10:       electron-launcher.sh
-Source11:       electron.desktop
+Source11:       Electron.desktop
 
 
 # Reverse upstream changes to be able to build against ffmpeg-4
@@ -1506,7 +1506,7 @@ ln -srvf third_party -t out/Release
 %files
 %license electron/LICENSE out/Release/LICENSES.chromium.html
 %{_bindir}/electron
-%{_datadir}/applications/electron.desktop
+%{_datadir}/applications/Electron.desktop
 %{_datadir}/icons/hicolor/16x16/apps/electron.png
 %{_datadir}/icons/hicolor/32x32/apps/electron.png
 %{_datadir}/icons/hicolor/48x48/apps/electron.png
@@ -1556,6 +1556,9 @@ ln -srvf third_party -t out/Release
 %endif
 
 %changelog
+* Sun Sep 28 2025 Sérgio Basto <sergio@serjux.com> - 37.5.1-1
+- Update to 37.5.1
+
 * Mon Sep 15 2025 Sérgio Basto <sergio@serjux.com> - 37.5.0-2
 - aarch64: add swiftshader-llvm21.patch to fix ftbfs with new LLVM
 
