@@ -15,6 +15,14 @@ This project aims to make openSUSE packages easier to use on Fedora. Most of the
 - Contributes to package testing and improvement
 - Support for **aarch64** architecture
 
+## Builds
+
+You can find the builds at the following links:
+
+- [Copr project page](https://copr.fedorainfracloud.org/coprs/sergiomb/electrons/)
+- [Node.js Electron package](https://copr.fedorainfracloud.org/coprs/sergiomb/electrons/package/nodejs-electron/)
+- [Specific build](https://copr.fedorainfracloud.org/coprs/sergiomb/electrons/build/9678359/)
+
 ## Contributing
 
 Contributions are welcome! If you encounter bugs or issues, please report them. Collaboration with the upstream authors is highly encouraged to ensure fixes are applied quickly.
@@ -22,3 +30,9 @@ Contributions are welcome! If you encounter bugs or issues, please report them. 
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
+
+---
+
+*Written by ChatGPT*  
+*I am not entirely responsible for the content of this text.*
+
