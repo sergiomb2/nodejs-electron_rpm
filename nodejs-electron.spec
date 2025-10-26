@@ -97,10 +97,8 @@ ExcludeArch: %arm
 
 %if 0%{?fedora}
 %bcond_without system_histogram
-%bcond_without system_simdjson
 %else
 %bcond_with system_histogram
-%bcond_with system_simdjson
 %endif
 
 
@@ -173,7 +171,7 @@ ExcludeArch: %arm
 
 
 Name:           nodejs-electron
-Version:        37.6.1
+Version:        37.7.1
 Release:        1%{?dist}
 Summary:        Build cross platform desktop apps with JavaScript, HTML, and CSS
 License:        Apache-2.0 AND blessing AND BSD-2-Clause AND BSD-3-Clause AND BSD-Source-Code AND bzip2-1.0.6 AND ISC AND LGPL-2.0-or-later AND LGPL-2.1-or-later AND MIT AND MIT-CMU AND MIT-open-group AND (MPL-1.1 OR GPL-2.0-or-later OR LGPL-2.1-or-later) AND MPL-2.0 AND OpenSSL AND SGI-B-2.0 AND SUSE-Public-Domain AND X11
@@ -366,6 +364,7 @@ Patch3221:      event_record-optional-initializer.patch
 Patch3222:      ANNOTATE_CONTIGUOUS_CONTAINER-Wodr.patch
 Patch3223:      v8-simd-flax-vector-conversions.patch
 Patch3224:      swiftshader-llvm21.patch
+Patch3225:      webrtc-pipewire_session-missing-spa_pod_object_find_prop.patch
 
 # Patches to re-enable upstream force disabled features.
 # There's no sense in submitting them but they may be reused as-is by other packagers.
@@ -595,7 +594,8 @@ BuildRequires:  pkgconfig(Qt6Widgets)
 BuildRequires:  cmake(re2) >= 11
 %endif
 %if %{with system_simdjson}
-BuildRequires:  pkgconfig(simdjson)
+# requires https://github.com/simdjson/simdjson/commit/f64c004cb71b08fdadb9881e2f0525800a0356e2
+BuildRequires:  pkgconfig(simdjson) >= 3.13
 %endif
 %if 0%{?suse_version}
 BuildRequires:  spirv-headers
@@ -1556,6 +1556,9 @@ ln -srvf third_party -t out/Release
 %endif
 
 %changelog
+* Sun Oct 26 2025 Sérgio Basto <sergio@serjux.com> - 37.7.1-1
+- Update to 37.7.1
+
 * Fri Oct 10 2025 Sérgio Basto <sergio@serjux.com> - 37.6.1-1
 - Update to 37.6.1
 
