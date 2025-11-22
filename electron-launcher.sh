@@ -1,7 +1,7 @@
 #!/bin/bash
 
->&2 echo 'This build of Electron is provided by openSUSE and contains various modifications and built in copr for Fedora.'
->&2 echo 'Please report problems by email to sergiomb@fedoraproject.org and not to upstream bug trackers.'
+>&2 echo 'This build of Electron is provided by openSUSE built on COPR for Fedora and includes a few small modifications.'
+>&2 echo 'Please report any issues at https://github.com/sergiomb2/nodejs-electron_rpm/issues instead of the upstream bug trackers.'
 
 
 set -euo pipefail
